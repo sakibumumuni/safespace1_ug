@@ -247,8 +247,10 @@ University of Ghana Counselling Directorate
         
         return True
     except Exception as e:
+        import traceback
         print(f"[EMAIL ERROR] Failed to send flag email: {e}")
-        # In production, queue for retry
+        print(f"[EMAIL CONFIG] server={cfg['smtp_server']}, port={cfg['smtp_port']}, sender={cfg['sender_email']}, recipient={cfg['directorate_email']}, password_set={bool(cfg['sender_password'])}")
+        traceback.print_exc()
         return False
 
 
