@@ -47,7 +47,10 @@ counsel_col     = db["counsel_msgs"] # counsellor ↔ user anonymous chat
 tokens_col      = db["session_tokens"] # one-time meeting codes
 assessments_col = db["assessments"]  # therapy assessments after mood check
 
-# Email Config (UG Counselling Directorate) 
+# Base URL for links in emails (set APP_URL in .env when deployed)
+APP_URL = os.environ.get("APP_URL", f"http://localhost:{os.environ.get('PORT', 5000)}").rstrip("/")
+
+# Email Config (UG Counselling Directorate)
 EMAIL_CONFIG = {
     "smtp_server": os.environ.get("SMTP_SERVER", "smtp.gmail.com"),
     "smtp_port": int(os.environ.get("SMTP_PORT", 587)),
@@ -176,7 +179,7 @@ Mood Trend (last 7 entries):
 
 {f"Therapy Assessment (Score: {flag_data.get('assessment_score')}/15 — {flag_data.get('assessment_risk', '').upper()}):{chr(10)}{flag_data.get('assessment_summary', '')}" if flag_data.get('assessment_summary') else ""}
 
-Review this case at: {flag_data.get('dashboard_url', f"http://localhost:{os.environ.get('PORT', 5000)}/staff/dashboard")}
+Review this case at: {flag_data.get('dashboard_url', f"{APP_URL}/staff/dashboard")}
 
 Actions Available:
 1. Open anonymous chat with this user
@@ -395,7 +398,7 @@ If the data shows no concerning patterns, return:
         "status": "pending",
         "created_at": datetime.utcnow(),
         "flagged_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
-        "dashboard_url": f"http://localhost:{os.environ.get('PORT', 5000)}/staff/dashboard",
+        "dashboard_url": f"{APP_URL}/staff/dashboard",
         "reviewed_by": None,
         "action_taken": None,
     }
@@ -746,34 +749,17 @@ def submit_checkin():
     answers_text = "\n\n".join(answer_lines)
 
     # ── Ask Claude to analyse text + survey together ──────
-    summary_prompt = f"""You are a clinical intake assistant for SafeSpace UG, a University of Ghana student wellness platform.
+    risk = "low" if total_score <= 3 else "moderate" if total_score <= 7 else "elevated" if total_score <= 11 else "high"
+    summary_prompt = f"""Clinical intake for a university student. Score: {total_score}/15 ({risk}).
+Student wrote: "{mood_text}"
+Survey: {answers_text}
 
-A student just completed their mandatory daily check-in. They wrote a free-text description of how they feel, then answered a 5-question screening survey.
-
-Generate a concise clinical intake summary (4-6 sentences) that a counsellor can quickly read BEFORE an in-person session to understand the student's current state.
-
-Include:
-1. An overall risk level (low / moderate / elevated / high) based on both the text and survey score ({total_score}/15)
-2. Key emotional themes from their free-text description
-3. Specific areas of concern from the survey answers
-4. Whether the text and survey answers are consistent or if one reveals more than the other
-5. A suggested focus area for the counselling session
-
-Score guide: 0-3 low, 4-7 moderate, 8-11 elevated, 12-15 high concern.
-
-Student's free-text description of how they feel:
-\"{mood_text}\"
-
-Survey responses:
-{answers_text}
-
-The text may be in English, Ghanaian Pidgin English, or Twi — interpret accordingly.
-Write in professional but compassionate clinical language. Under 120 words. Never include the student's identity."""
+Write a 3-sentence counsellor briefing: risk level, key concerns, suggested session focus. Under 60 words. No identity."""
 
     try:
         message = claude_client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=250,
+            max_tokens=120,
             messages=[{"role": "user", "content": summary_prompt}],
         )
         clinical_summary = message.content[0].text.strip()
@@ -842,7 +828,7 @@ Write in professional but compassionate clinical language. Under 120 words. Neve
                 "status": "pending",
                 "created_at": datetime.utcnow(),
                 "flagged_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
-                "dashboard_url": f"http://localhost:{os.environ.get('PORT', 5000)}/staff/dashboard",
+                "dashboard_url": f"{APP_URL}/staff/dashboard",
                 "reviewed_by": None,
                 "action_taken": None,
             }
