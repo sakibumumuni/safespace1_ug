@@ -48,7 +48,7 @@ tokens_col      = db["session_tokens"] # one-time meeting codes
 assessments_col = db["assessments"]  # therapy assessments after mood check
 
 # Base URL for links in emails (set APP_URL in .env when deployed)
-APP_URL = os.environ.get("APP_URL", f"http://localhost:{os.environ.get('PORT', 5000)}").rstrip("/")
+APP_URL = os.environ.get("APP_URL", f"http://localhost:{os.environ.get('PORT', 5000)}").strip().rstrip("/")
 
 # Email Config (UG Counselling Directorate)
 EMAIL_CONFIG = {
@@ -772,10 +772,40 @@ def submit_checkin():
     }
     assessments_col.insert_one(checkin_doc)
 
+    # Derive mood value (1-5) from score (0-15, higher = worse)
+    if total_score <= 3:
+        mood_value = 5
+    elif total_score <= 7:
+        mood_value = 4
+    elif total_score <= 10:
+        mood_value = 3
+    elif total_score <= 13:
+        mood_value = 2
+    else:
+        mood_value = 1
+
+    # Save mood to moods_col so AI flagging engine has data
+    moods_col.insert_one({
+        "user_id": user_id,
+        "value": mood_value,
+        "note": mood_text[:200],
+        "source": "checkin",
+        "created_at": datetime.utcnow(),
+    })
+
+    # Save mood text as journal entry so AI can analyse the language
+    if mood_text:
+        journals_col.insert_one({
+            "user_id": user_id,
+            "content": mood_text,
+            "source": "checkin",
+            "created_at": datetime.utcnow(),
+        })
+
     # Update user activity
     users_col.update_one(
         {"_id": ObjectId(user_id)},
-        {"$set": {"last_active": datetime.utcnow()}}
+        {"$set": {"last_active": datetime.utcnow()}, "$inc": {"usage_streak": 1}}
     )
 
     # ── Create a check-in flag for staff (separate from periodic flags) ──
@@ -812,6 +842,9 @@ def submit_checkin():
             result = flags_col.insert_one(flag)
             flag["_id"] = result.inserted_id
             send_flag_email(flag)
+
+    # Run AI-powered flag check (uses mood + journal data saved above)
+    check_and_flag_user(user_id)
 
     # Clear the needs_checkin flag
     session.pop("needs_checkin", None)
