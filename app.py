@@ -10,7 +10,6 @@ import secrets
 import string
 import smtplib
 import json
-import threading
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -136,11 +135,7 @@ def json_serial(obj):
 
 
 def send_flag_email(flag_data):
-    """Send alert email in a background thread so it never blocks the response."""
-    threading.Thread(target=_send_flag_email_sync, args=(flag_data.copy(),), daemon=True).start()
-
-def _send_flag_email_sync(flag_data):
-    """Actual email send logic (runs in background thread)."""
+    """Send structured alert email to UG Counselling Directorate."""
     cfg = EMAIL_CONFIG
     
     severity_colors = {
