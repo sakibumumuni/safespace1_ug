@@ -8,6 +8,17 @@
     </header>
 
     <main class="app-content">
+        {# ── Greeting ────────────────────────────────────── #}
+        <div style="margin-bottom: 18px; animation: fadeInUp 0.4s ease both;">
+            <div style="font-size: 20px; font-weight: 700;">
+                {% set hour = now.hour if now is defined else 12 %}
+                Hey there 👋
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                This is your safe space. Everything here is private.
+            </div>
+        </div>
+
         {# ── Counsellor Notification ─────────────────────── #}
         {% if notifications %}
         <div class="notif-banner purple">
@@ -19,14 +30,14 @@
             </div>
             <div class="notif-actions">
                 <a href="/counsellor-chat" class="btn btn-purple btn-sm">Start Anonymous Chat</a>
-                <button class="btn btn-ghost btn-sm" onclick="this.closest('.notif-banner').style.display='none'">Maybe Later</button>
+                <button class="btn btn-ghost btn-sm" onclick="this.closest('.notif-banner').style.opacity='0';setTimeout(()=>this.closest('.notif-banner').style.display='none',300)">Maybe Later</button>
             </div>
         </div>
         {% endif %}
 
         {# ── Session Token ───────────────────────────────── #}
         {% if active_token %}
-        <div class="card">
+        <div class="card" style="border-color: rgba(94,206,138,0.2);">
             <div style="font-size: 13px; font-weight: 600; color: var(--green); display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
                 🔑 Private Session Code
             </div>
@@ -41,7 +52,7 @@
         {% endif %}
 
         {# ── Mood Check ──────────────────────────────────── #}
-        <div class="card">
+        <div class="card" style="animation-delay: 0.05s;">
             <div class="card-header">How are you today?</div>
             <div class="card-sub">Your mood is private and never shared</div>
             <div class="mood-picker">
@@ -74,13 +85,13 @@
 
         {# ── Mood Trend ──────────────────────────────────── #}
         {% if recent_moods %}
-        <div class="card">
+        <div class="card" style="animation-delay: 0.10s;">
             <div class="card-header">Your Week</div>
             <div class="mood-chart" style="margin-top: 12px;">
                 {% for mood in recent_moods %}
                 {% set pct = (mood.value / 5) * 100 %}
                 {% set colors = {1: "var(--red)", 2: "var(--amber)", 3: "var(--text-muted)", 4: "var(--accent)", 5: "var(--green)"} %}
-                <div class="mood-bar" style="height: {{ pct }}%; background: {{ colors[mood.value] }}; opacity: 0.7;">
+                <div class="mood-bar" style="height: {{ pct }}%; background: {{ colors[mood.value] }};">
                     <span class="bar-label">{{ mood.created_at.strftime('%d') }}</span>
                 </div>
                 {% endfor %}
@@ -93,18 +104,22 @@
             <a href="/journal" class="quick-card">
                 <div class="q-icon">📝</div>
                 <div class="q-label">Journal</div>
+                <div style="font-size: 10px; color: var(--text-dim); margin-top: 4px;">Write freely</div>
             </a>
             <a href="/groups" class="quick-card">
                 <div class="q-icon">👥</div>
                 <div class="q-label">Peer Groups</div>
+                <div style="font-size: 10px; color: var(--text-dim); margin-top: 4px;">You're not alone</div>
             </a>
             <a href="/crisis" class="quick-card">
                 <div class="q-icon">🆘</div>
                 <div class="q-label">Crisis Help</div>
+                <div style="font-size: 10px; color: var(--text-dim); margin-top: 4px;">Immediate support</div>
             </a>
             <a href="/counsellor-chat" class="quick-card">
                 <div class="q-icon">🛡️</div>
                 <div class="q-label">Counsellor</div>
+                <div style="font-size: 10px; color: var(--text-dim); margin-top: 4px;">Private & safe</div>
             </a>
         </div>
     </main>
@@ -112,4 +127,5 @@
     {% set active = 'home' %}
     {% include "nav.html" %}
 </div>
+
 {% endblock %}

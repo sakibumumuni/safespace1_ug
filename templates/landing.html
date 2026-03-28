@@ -27,18 +27,18 @@
         </div>
     </div>
 
-    <form action="/api/auth/register" method="POST" id="register-form" style="width: 100%; max-width: 300px;">
-        <button type="submit" class="btn btn-primary btn-full" style="padding: 14px; font-size: 15px;">
+    <form action="/api/auth/register" method="POST" id="register-form" style="width: 100%; max-width: 320px; animation: fadeInUp 0.6s ease both; animation-delay: 0.7s;">
+        <button type="submit" id="enter-btn" class="btn btn-primary btn-full" style="padding: 14px; font-size: 15px;">
             Enter Anonymously
         </button>
     </form>
 
-    <div style="margin-top: 24px; font-size: 12px; color: var(--text-dim);">
+    <div style="margin-top: 24px; font-size: 12px; color: var(--text-dim); animation: fadeIn 1s ease both; animation-delay: 0.9s;">
         No signup. No email. No personal data collected.
     </div>
 
-    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); width: 100%; max-width: 300px;">
-        <a href="/staff/login" style="font-size: 12px; color: var(--text-dim);">
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); width: 100%; max-width: 300px; animation: fadeIn 1s ease both; animation-delay: 1s;">
+        <a href="/staff/login" style="font-size: 12px; color: var(--text-dim); transition: color 0.2s;">
             🏥 UG Counselling Staff Login →
         </a>
     </div>
@@ -47,9 +47,18 @@
 <script>
 document.getElementById("register-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const btn = document.getElementById("enter-btn");
+    btn.textContent = "Creating your space...";
+    btn.disabled = true;
+    btn.style.opacity = "0.7";
     const res = await fetch("/api/auth/register", { method: "POST", headers: {"Content-Type": "application/json"} });
     const data = await res.json();
-    if (data.ok) window.location.href = "/home";
+    if (data.ok) {
+        btn.textContent = "Welcome ✓";
+        btn.style.background = "linear-gradient(135deg, var(--green), #4CB87A)";
+        btn.style.opacity = "1";
+        setTimeout(() => { window.location.href = "/checkin"; }, 400);
+    }
 });
 </script>
 {% endblock %}

@@ -1,5 +1,7 @@
-/* 
-   SafeSpace UG — Client JavaScript*/
+/*
+   SafeSpace UG — Client JavaScript
+   Modern interactions with smooth transitions
+*/
 
 // ─── API Helper ──────────────────────────────────────────────────
 async function api(url, method = "GET", body = null) {
@@ -12,7 +14,7 @@ async function api(url, method = "GET", body = null) {
     return res.json();
 }
 
-// Mood Logging 
+// ─── Mood Logging ────────────────────────────────────────────────
 function selectMood(value) {
     const btns = document.querySelectorAll(".mood-btn");
     const colors = { 1: "#EF6B6B", 2: "#F0B95A", 3: "#8B90A5", 4: "#6C9BF2", 5: "#5ECE8A" };
@@ -30,6 +32,11 @@ function selectMood(value) {
         selected.style.borderColor = colors[value];
         selected.style.background = colors[value] + "18";
         selected.querySelector(".mood-label").style.color = colors[value];
+
+        // Bounce animation on the emoji
+        const emoji = selected.querySelector(".mood-emoji");
+        emoji.style.transform = "scale(1.4)";
+        setTimeout(() => { emoji.style.transform = ""; }, 200);
     }
 
     api("/api/mood", "POST", { value: parseInt(value) }).then(data => {
@@ -38,7 +45,6 @@ function selectMood(value) {
             feedback.style.display = "flex";
             feedback.textContent = "✓ Mood logged";
         }
-        // Refresh mood chart after small delay
         setTimeout(() => { if (window.loadMoodChart) window.loadMoodChart(); }, 500);
     });
 }
@@ -57,13 +63,18 @@ function saveJournal() {
     api("/api/journal", "POST", { content }).then(data => {
         if (data.ok) {
             btn.textContent = "✓ Saved";
-            btn.style.background = "var(--green-soft)";
-            btn.style.color = "var(--green)";
+            btn.style.background = "linear-gradient(135deg, var(--green), #4CB87A)";
+            btn.style.boxShadow = "0 2px 12px rgba(94,206,138,0.3)";
             textarea.value = "";
+
+            // Update character counter
+            const jc = document.getElementById("journal-char-count");
+            if (jc) jc.textContent = "";
+
             setTimeout(() => {
                 btn.textContent = "Save Entry";
                 btn.style.background = "";
-                btn.style.color = "";
+                btn.style.boxShadow = "";
                 btn.disabled = false;
                 if (window.loadJournalEntries) window.loadJournalEntries();
             }, 2000);
@@ -89,11 +100,15 @@ function sendGroupMessage(groupId) {
 
 function appendChatMessage(msg, isMine) {
     const container = document.getElementById("chat-messages");
+    // Remove empty state if present
+    const emptyState = container.querySelector("[style*='text-align: center']");
+    if (emptyState && emptyState.textContent.includes("first")) emptyState.remove();
+
     const div = document.createElement("div");
     div.className = `chat-msg ${isMine ? "mine" : msg.is_guide ? "guide" : "theirs"}`;
     div.id = `msg-${msg._id}`;
     div.innerHTML = `
-        ${!isMine ? `<div class="chat-sender">${msg.anon_name || "Anonymous"}</div>` : ""}
+        ${!isMine ? `<div class="chat-sender">${escapeHtml(msg.anon_name || "Anonymous")}</div>` : ""}
         <div>${escapeHtml(msg.text)}</div>
         <div class="chat-time">
             ${msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}) : "Now"}
@@ -108,14 +123,21 @@ function deleteMessage(groupId, msgId) {
     api(`/api/group/${groupId}/message/${msgId}`, "DELETE").then(data => {
         if (data.ok) {
             const el = document.getElementById(`msg-${msgId}`);
-            if (el) el.remove();
+            if (el) {
+                el.style.transition = "all 0.3s ease";
+                el.style.opacity = "0";
+                el.style.transform = "scale(0.9)";
+                setTimeout(() => el.remove(), 300);
+            }
         }
     });
 }
 
 function scrollChatBottom() {
     const container = document.getElementById("chat-messages");
-    if (container) container.scrollTop = container.scrollHeight;
+    if (container) {
+        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
 }
 
 // ─── Counsellor Chat (Student Side) ──────────────────────────────
@@ -129,11 +151,15 @@ function sendToCounsellor() {
     api("/api/counsellor/send", "POST", { text }).then(data => {
         if (data.ok) {
             const container = document.getElementById("counsel-messages");
+            // Remove empty state
+            const emptyState = container.querySelector("[style*='text-align: center']");
+            if (emptyState) emptyState.remove();
+
             const div = document.createElement("div");
             div.className = "chat-msg mine";
             div.innerHTML = `<div>${escapeHtml(text)}</div><div class="chat-time">Now</div>`;
             container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
+            container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
         }
     });
 }
@@ -155,7 +181,7 @@ function pollCounsellorMessages() {
             `;
             container.appendChild(div);
         });
-        container.scrollTop = container.scrollHeight;
+        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
     });
 }
 
@@ -169,7 +195,11 @@ function reviewFlag(flagId) {
                 if (badge) {
                     badge.className = "badge badge-reviewed";
                     badge.textContent = "Reviewed";
+                    badge.style.transition = "all 0.3s ease";
                 }
+                // Subtle flash
+                card.style.borderColor = "rgba(94,206,138,0.4)";
+                setTimeout(() => { card.style.borderColor = ""; }, 1500);
             }
         }
     });
@@ -178,8 +208,11 @@ function reviewFlag(flagId) {
 function initiateChat(flagId, sessionNum) {
     api(`/api/staff/flag/${flagId}/chat`, "POST", { session: sessionNum }).then(data => {
         if (data.ok) {
-            alert(`Chat initiated (Session ${sessionNum}). The user will see a notification.`);
-            location.reload();
+            const card = document.getElementById(`flag-${flagId}`);
+            if (card) {
+                card.style.borderColor = "rgba(167,139,250,0.4)";
+                setTimeout(() => location.reload(), 600);
+            }
         }
     });
 }
@@ -187,8 +220,19 @@ function initiateChat(flagId, sessionNum) {
 function generateToken(flagId) {
     api(`/api/staff/flag/${flagId}/token`, "POST").then(data => {
         if (data.ok) {
-            alert(`Session token generated: #${data.code}\nThe user has been notified.`);
-            location.reload();
+            const card = document.getElementById(`flag-${flagId}`);
+            if (card) {
+                card.style.borderColor = "rgba(240,185,90,0.4)";
+            }
+            // Show inline notification instead of alert
+            const meta = card ? card.querySelector(".flag-meta") : null;
+            if (meta) {
+                const note = document.createElement("div");
+                note.style.cssText = "color: var(--amber); font-size: 12px; font-weight: 600; margin-top: 8px; animation: fadeInUp 0.3s ease both;";
+                note.textContent = `🔑 Token generated: #${data.code} — user notified`;
+                meta.parentNode.insertBefore(note, meta.nextSibling);
+            }
+            setTimeout(() => location.reload(), 2000);
         }
     });
 }
@@ -203,6 +247,10 @@ function staffSendMessage(userId) {
     api(`/api/staff/chat/${userId}/send`, "POST", { text }).then(data => {
         if (data.ok) {
             const container = document.getElementById("staff-chat-messages");
+            // Remove empty state
+            const emptyState = container.querySelector("[style*='text-align: center']");
+            if (emptyState) emptyState.remove();
+
             const div = document.createElement("div");
             div.className = "chat-msg counsellor";
             div.innerHTML = `
@@ -211,7 +259,7 @@ function staffSendMessage(userId) {
                 <div class="chat-time">Now</div>
             `;
             container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
+            container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
         }
     });
 }
@@ -223,8 +271,12 @@ function runFlagging() {
 
     api("/api/staff/run-flagging", "POST").then(data => {
         btn.textContent = `✓ ${data.flags_created} new flags`;
+        btn.style.color = "var(--green)";
+        btn.style.borderColor = "rgba(94,206,138,0.3)";
         setTimeout(() => {
-            btn.textContent = "Run Flagging Check";
+            btn.textContent = "🔄 Run Flagging Check";
+            btn.style.color = "";
+            btn.style.borderColor = "";
             btn.disabled = false;
             if (data.flags_created > 0) location.reload();
         }, 2000);
@@ -240,8 +292,11 @@ function setDemoEmail() {
 
     api("/api/staff/set-email", "POST", { email }).then(data => {
         if (data.ok) {
-            feedback.textContent = `Alerts now go to ${data.email}`;
+            feedback.textContent = `✓ Alerts now go to ${data.email}`;
+            feedback.style.color = "var(--green)";
             feedback.style.display = "block";
+            input.style.borderColor = "rgba(94,206,138,0.3)";
+            setTimeout(() => { input.style.borderColor = ""; }, 2000);
         } else {
             feedback.textContent = data.error || "Failed";
             feedback.style.color = "var(--red)";
@@ -259,7 +314,7 @@ function escapeHtml(text) {
 
 // ─── Init ────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
-    // Auto-scroll chats
+    // Auto-scroll chats smoothly
     scrollChatBottom();
 
     // Enter key for chat inputs
@@ -281,4 +336,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (document.getElementById("counsel-messages")) {
         setInterval(pollCounsellorMessages, 5000);
     }
+
+    // Add focus ring effect to inputs
+    document.querySelectorAll(".input").forEach(input => {
+        input.addEventListener("focus", () => {
+            input.parentElement && input.parentElement.style && (input.parentElement.style.transition = "all 0.3s");
+        });
+    });
 });

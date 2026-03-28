@@ -8,29 +8,37 @@
     </header>
 
     <main class="app-content">
-        <div class="page-title">Journal</div>
+        <div class="page-title">📝 Journal</div>
         <div class="page-sub">Write freely. Your entries are private and encrypted.</div>
 
-        <textarea id="journal-input" class="input" rows="6" placeholder="What's on your mind today?" style="margin-bottom: 12px;"></textarea>
-        
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 24px;">
-            <button id="journal-save-btn" class="btn btn-primary" onclick="saveJournal()">Save Entry</button>
+        <div class="card" style="animation-delay: 0.05s; border-color: var(--accent-soft);">
+            <textarea id="journal-input" class="input" rows="6" placeholder="What's on your mind today? This space is just for you..." style="margin-bottom: 12px; background: var(--surface);"></textarea>
+
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div id="journal-char-count" style="font-size: 11px; color: var(--text-dim);"></div>
+                <button id="journal-save-btn" class="btn btn-primary" onclick="saveJournal()">
+                    Save Entry
+                </button>
+            </div>
         </div>
 
-        <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Past Entries</div>
-        
+        <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px; margin-top: 8px; animation: fadeInUp 0.4s ease both; animation-delay: 0.1s;">
+            Past Entries
+        </div>
+
         <div id="journal-entries">
             {% for entry in entries %}
-            <div class="journal-entry">
+            <div class="journal-entry" style="animation-delay: {{ loop.index * 0.04 }}s;">
                 <div class="j-date">{{ entry.created_at.strftime('%b %d, %Y · %I:%M %p') }}</div>
                 <div class="j-preview">{{ entry.content[:200] }}{% if entry.content|length > 200 %}...{% endif %}</div>
             </div>
             {% endfor %}
-            
+
             {% if not entries %}
-            <div style="text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: 13px;">
-                <div style="font-size: 32px; margin-bottom: 10px;">📝</div>
-                Your journal is empty. Start writing to track your thoughts.
+            <div style="text-align: center; padding: 50px 20px; color: var(--text-dim); font-size: 13px; animation: fadeInUp 0.5s ease both;">
+                <div style="font-size: 40px; margin-bottom: 12px; opacity: 0.7;">📝</div>
+                <div style="font-weight: 500;">Your journal is empty</div>
+                <div style="margin-top: 4px;">Start writing to track your thoughts.</div>
             </div>
             {% endif %}
         </div>
@@ -39,4 +47,16 @@
     {% set active = 'journal' %}
     {% include "nav.html" %}
 </div>
+
+<script>
+// Character counter
+const ji = document.getElementById("journal-input");
+const jc = document.getElementById("journal-char-count");
+if (ji && jc) {
+    ji.addEventListener("input", () => {
+        const len = ji.value.length;
+        jc.textContent = len > 0 ? len + " characters" : "";
+    });
+}
+</script>
 {% endblock %}

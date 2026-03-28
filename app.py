@@ -45,6 +45,7 @@ messages_col    = db["messages"]     # group chat messages
 flags_col       = db["flags"]        # flagged cases for directorate
 counsel_col     = db["counsel_msgs"] # counsellor ↔ user anonymous chat
 tokens_col      = db["session_tokens"] # one-time meeting codes
+assessments_col = db["assessments"]  # therapy assessments after mood check
 
 # Email Config (UG Counselling Directorate) 
 EMAIL_CONFIG = {
@@ -169,6 +170,8 @@ Mood Trend (last 7 entries):
 
 {f"Journal Excerpt:{chr(10)}{flag_data.get('journal_excerpt', '')}" if flag_data.get('journal_excerpt') else ""}
 
+{f"Therapy Assessment (Score: {flag_data.get('assessment_score')}/15 — {flag_data.get('assessment_risk', '').upper()}):{chr(10)}{flag_data.get('assessment_summary', '')}" if flag_data.get('assessment_summary') else ""}
+
 Review this case at: {flag_data.get('dashboard_url', f"http://localhost:{os.environ.get('PORT', 5000)}/staff/dashboard")}
 
 Actions Available:
@@ -209,7 +212,9 @@ University of Ghana Counselling Directorate
             </div>
             
             {"<div style='margin-bottom: 16px;'><div style=font-size:12px;color:#8B90A5;margin-bottom:4px;>JOURNAL EXCERPT</div><div style=font-size:13px;color:#F0B95A;font-style:italic;background:#1E2230;padding:12px;border-radius:8px;border-left:3px solid " + color + ";>" + flag_data.get('journal_excerpt', '') + "</div></div>" if flag_data.get('journal_excerpt') else ""}
-            
+
+            {"<div style='margin-bottom:16px;'><div style='font-size:12px;color:#A78BFA;margin-bottom:4px;'>THERAPY ASSESSMENT (Score: " + str(flag_data.get('assessment_score', '')) + "/15 — " + str(flag_data.get('assessment_risk', '')).upper() + ")</div><div style='font-size:13px;color:#E8EAF0;background:#1E2230;padding:12px;border-radius:8px;border-left:3px solid #A78BFA;line-height:1.5;'>" + flag_data.get('assessment_summary', '') + "</div></div>" if flag_data.get('assessment_summary') else ""}
+
             <div style="margin-top: 24px; text-align: center;">
                 <a href="{flag_data.get('dashboard_url', '#')}" 
                    style="background: {color}; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;">
@@ -365,6 +370,12 @@ If the data shows no concerning patterns, return:
     if recent_flag:
         return None
 
+    # ── Pull latest assessment if available ──────────────
+    latest_assessment = assessments_col.find_one(
+        {"user_id": str(user_id)},
+        sort=[("created_at", -1)],
+    )
+
     # ── Create flag document ───────────────────────────────
     flag = {
         "user_id": str(user_id),
@@ -374,6 +385,9 @@ If the data shows no concerning patterns, return:
         "reason": "; ".join(reasons),
         "mood_trend": mood_trend,
         "journal_excerpt": journal_excerpt,
+        "assessment_score": latest_assessment.get("total_score") if latest_assessment else None,
+        "assessment_risk": latest_assessment.get("risk_level") if latest_assessment else None,
+        "assessment_summary": latest_assessment.get("clinical_summary") if latest_assessment else None,
         "status": "pending",
         "created_at": datetime.utcnow(),
         "flagged_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
@@ -409,6 +423,62 @@ def run_periodic_flagging():
 
 
 
+# ─── Therapy Assessment Questions ─────────────────────────────
+# Brief screening inspired by PHQ-2/GAD-2 adapted for university students
+ASSESSMENT_QUESTIONS = [
+    {
+        "id": "q1",
+        "text": "Over the past two weeks, how often have you felt down, depressed, or hopeless?",
+        "options": [
+            {"value": 0, "label": "Not at all"},
+            {"value": 1, "label": "Several days"},
+            {"value": 2, "label": "More than half the days"},
+            {"value": 3, "label": "Nearly every day"},
+        ],
+    },
+    {
+        "id": "q2",
+        "text": "Over the past two weeks, how often have you felt nervous, anxious, or on edge?",
+        "options": [
+            {"value": 0, "label": "Not at all"},
+            {"value": 1, "label": "Several days"},
+            {"value": 2, "label": "More than half the days"},
+            {"value": 3, "label": "Nearly every day"},
+        ],
+    },
+    {
+        "id": "q3",
+        "text": "How often have you had trouble sleeping or slept too much?",
+        "options": [
+            {"value": 0, "label": "Not at all"},
+            {"value": 1, "label": "Several days"},
+            {"value": 2, "label": "More than half the days"},
+            {"value": 3, "label": "Nearly every day"},
+        ],
+    },
+    {
+        "id": "q4",
+        "text": "How would you rate your ability to cope with daily academic and social demands?",
+        "options": [
+            {"value": 0, "label": "Very well"},
+            {"value": 1, "label": "Fairly well"},
+            {"value": 2, "label": "Struggling somewhat"},
+            {"value": 3, "label": "Not coping at all"},
+        ],
+    },
+    {
+        "id": "q5",
+        "text": "Do you feel you have someone to talk to when things get tough?",
+        "options": [
+            {"value": 0, "label": "Yes, always"},
+            {"value": 1, "label": "Sometimes"},
+            {"value": 2, "label": "Rarely"},
+            {"value": 3, "label": "No, never"},
+        ],
+    },
+]
+
+
 # ROUTES — Pages
 
 @app.route("/")
@@ -420,10 +490,35 @@ def landing():
     return render_template("landing.html")
 
 
+@app.route("/checkin")
+@login_required
+def checkin_page():
+    """Mandatory daily check-in: free-text mood + survey."""
+    user = get_current_user()
+    # If already checked in today, skip to home
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_checkin = assessments_col.find_one({
+        "user_id": str(user["_id"]),
+        "created_at": {"$gte": today_start}
+    })
+    if today_checkin:
+        session.pop("needs_checkin", None)
+        return redirect(url_for("home"))
+    return render_template("checkin.html", user=user, questions=ASSESSMENT_QUESTIONS)
+
+
 @app.route("/home")
 @login_required
 def home():
     user = get_current_user()
+    # Redirect to check-in if not done today
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_checkin = assessments_col.find_one({
+        "user_id": str(user["_id"]),
+        "created_at": {"$gte": today_start}
+    })
+    if not today_checkin:
+        return redirect(url_for("checkin_page"))
     # Get today's mood
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     today_mood = moods_col.find_one({
@@ -575,6 +670,7 @@ def register():
     result = users_col.insert_one(user)
     session["user_id"] = str(result.inserted_id)
     session["anon_name"] = anon_name
+    session["needs_checkin"] = True
     return jsonify({"ok": True, "anon_name": anon_name, "token": token})
 
 
@@ -606,6 +702,159 @@ def log_mood():
     flag = check_and_flag_user(user_id)
     
     return jsonify({"ok": True, "flagged": flag is not None})
+
+
+@app.route("/api/checkin", methods=["POST"])
+@login_required
+def submit_checkin():
+    """
+    Mandatory daily check-in: free-text mood description + survey answers.
+    Completely separate from the periodic flagging engine.
+    Generates a clinical intake summary for counselling staff and creates
+    its own flag so staff see the user's state before any in-person session.
+    """
+    data = request.json
+    answers = data.get("answers", {})
+    mood_text = data.get("mood_text", "").strip()
+
+    if not answers or not mood_text:
+        return jsonify({"error": "Please describe how you feel and answer all questions"}), 400
+
+    user_id = session["user_id"]
+    user = users_col.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    token = user.get("token", generate_token())
+
+    # Calculate raw score (0-15)
+    total_score = sum(int(v) for v in answers.values())
+
+    # Build readable answers for Claude
+    answer_lines = []
+    for q in ASSESSMENT_QUESTIONS:
+        val = answers.get(q["id"])
+        if val is not None:
+            val = int(val)
+            chosen = next((o["label"] for o in q["options"] if o["value"] == val), "Unknown")
+            answer_lines.append(f"Q: {q['text']}\nA: {chosen} ({val}/3)")
+
+    answers_text = "\n\n".join(answer_lines)
+
+    # ── Ask Claude to analyse text + survey together ──────
+    summary_prompt = f"""You are a clinical intake assistant for SafeSpace UG, a University of Ghana student wellness platform.
+
+A student just completed their mandatory daily check-in. They wrote a free-text description of how they feel, then answered a 5-question screening survey.
+
+Generate a concise clinical intake summary (4-6 sentences) that a counsellor can quickly read BEFORE an in-person session to understand the student's current state.
+
+Include:
+1. An overall risk level (low / moderate / elevated / high) based on both the text and survey score ({total_score}/15)
+2. Key emotional themes from their free-text description
+3. Specific areas of concern from the survey answers
+4. Whether the text and survey answers are consistent or if one reveals more than the other
+5. A suggested focus area for the counselling session
+
+Score guide: 0-3 low, 4-7 moderate, 8-11 elevated, 12-15 high concern.
+
+Student's free-text description of how they feel:
+\"{mood_text}\"
+
+Survey responses:
+{answers_text}
+
+The text may be in English, Ghanaian Pidgin English, or Twi — interpret accordingly.
+Write in professional but compassionate clinical language. Under 120 words. Never include the student's identity."""
+
+    try:
+        message = claude_client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=250,
+            messages=[{"role": "user", "content": summary_prompt}],
+        )
+        clinical_summary = message.content[0].text.strip()
+    except Exception as e:
+        print(f"[CHECKIN SUMMARY ERROR] {e}")
+        risk = "low" if total_score <= 3 else "moderate" if total_score <= 7 else "elevated" if total_score <= 11 else "high"
+        clinical_summary = (
+            f"Check-in score: {total_score}/15 ({risk} concern). "
+            f"Student wrote: \"{mood_text[:100]}{'...' if len(mood_text) > 100 else ''}\". "
+            f"AI summary unavailable — please review the raw text."
+        )
+
+    # Determine risk level
+    if total_score <= 3:
+        risk_level = "low"
+    elif total_score <= 7:
+        risk_level = "moderate"
+    elif total_score <= 11:
+        risk_level = "elevated"
+    else:
+        risk_level = "high"
+
+    # Save the check-in
+    checkin_doc = {
+        "user_id": user_id,
+        "user_token": token,
+        "mood_text": mood_text,
+        "answers": answers,
+        "total_score": total_score,
+        "risk_level": risk_level,
+        "clinical_summary": clinical_summary,
+        "created_at": datetime.utcnow(),
+    }
+    assessments_col.insert_one(checkin_doc)
+
+    # Update user activity
+    users_col.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"last_active": datetime.utcnow()}}
+    )
+
+    # ── Create a check-in flag for staff (separate from periodic flags) ──
+    # Only create if moderate or above, or if text is concerning
+    if total_score >= 4:
+        # Deduplicate: don't double-flag from same check-in session
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        existing_checkin_flag = flags_col.find_one({
+            "user_id": user_id,
+            "flag_type": "checkin",
+            "created_at": {"$gte": today_start},
+        })
+        if not existing_checkin_flag:
+            severity = "urgent" if risk_level == "high" else "concern" if risk_level == "elevated" else "watch"
+            flag = {
+                "user_id": user_id,
+                "user_token": token,
+                "flag_type": "checkin",
+                "severity": severity,
+                "reasons": [f"Daily check-in: {risk_level} risk ({total_score}/15)"],
+                "reason": f"Daily check-in: {risk_level} risk ({total_score}/15)",
+                "mood_trend": [],
+                "journal_excerpt": mood_text[:200],
+                "assessment_score": total_score,
+                "assessment_risk": risk_level,
+                "assessment_summary": clinical_summary,
+                "status": "pending",
+                "created_at": datetime.utcnow(),
+                "flagged_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+                "dashboard_url": f"http://localhost:{os.environ.get('PORT', 5000)}/staff/dashboard",
+                "reviewed_by": None,
+                "action_taken": None,
+            }
+            result = flags_col.insert_one(flag)
+            flag["_id"] = result.inserted_id
+            send_flag_email(flag)
+
+    # Clear the needs_checkin flag
+    session.pop("needs_checkin", None)
+
+    return jsonify({
+        "ok": True,
+        "risk_level": risk_level,
+        "total_score": total_score,
+        "summary": clinical_summary,
+    })
 
 
 @app.route("/api/journal", methods=["POST"])

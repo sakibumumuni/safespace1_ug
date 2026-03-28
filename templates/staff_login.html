@@ -2,15 +2,17 @@
 {% block title %}SafeSpace UG — Staff Login{% endblock %}
 {% block body %}
 <div class="staff-login">
-    <div style="font-size: 36px; margin-bottom: 16px;">🏥</div>
-    <h2>Staff Portal</h2>
-    <div class="login-sub">UG Counselling Directorate — Review flagged cases and reach out to students anonymously.</div>
+    <div style="font-size: 44px; margin-bottom: 16px; animation: float 3s ease-in-out infinite;">🏥</div>
+    <h2 style="animation: fadeInUp 0.5s ease both; animation-delay: 0.1s;">Staff Portal</h2>
+    <div class="login-sub" style="animation: fadeInUp 0.5s ease both; animation-delay: 0.15s;">
+        UG Counselling Directorate — Review flagged cases and reach out to students anonymously.
+    </div>
 
     {% if error %}
     <div class="error-msg">{{ error }}</div>
     {% endif %}
 
-    <form method="POST" action="/staff/login">
+    <form method="POST" action="/staff/login" style="animation: fadeInUp 0.5s ease both; animation-delay: 0.2s;">
         <div class="form-group">
             <label>Your Name (for internal records)</label>
             <input type="text" name="name" class="input" placeholder="e.g. Dr. Mensah" required>
@@ -19,13 +21,15 @@
             <label>Staff Access Code</label>
             <input type="password" name="access_code" class="input" placeholder="Enter access code" required>
         </div>
-        <button type="submit" class="btn btn-purple btn-full" style="margin-top: 8px;">
+        <button type="submit" class="btn btn-purple btn-full" style="margin-top: 8px; padding: 12px;">
             Enter Staff Dashboard
         </button>
     </form>
 
-    <div style="margin-top: 24px;">
-        <a href="/" style="font-size: 12px; color: var(--text-dim);">← Back to SafeSpace</a>
+    <div style="margin-top: 28px; animation: fadeIn 0.8s ease both; animation-delay: 0.4s;">
+        <a href="/" style="font-size: 12px; color: var(--text-dim); transition: color 0.2s;">
+            ← Back to SafeSpace
+        </a>
     </div>
 </div>
 {% endblock %}

@@ -83,6 +83,9 @@
                 </span>
             </div>
             <div style="display: flex; gap: 6px; align-items: center;">
+                {% if flag.flag_type == 'checkin' %}
+                <span class="badge" style="color: var(--purple); background: var(--purple-soft);">check-in</span>
+                {% endif %}
                 <span class="badge badge-{{ flag.severity }}">{{ flag.severity }}</span>
                 <span class="badge badge-{{ 'reviewed' if flag.status in ['reviewed', 'action_taken', 'resolved'] else 'pending' }}">
                     {{ flag.status }}
@@ -93,6 +96,9 @@
         <div class="flag-reason">{{ flag.reason }}</div>
 
         {% if flag.journal_excerpt %}
+        <div style="font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;">
+            {% if flag.flag_type == 'checkin' %}Student's own words{% else %}Journal excerpt{% endif %}
+        </div>
         <div class="flag-excerpt">"{{ flag.journal_excerpt[:200] }}{% if flag.journal_excerpt|length > 200 %}...{% endif %}"</div>
         {% endif %}
 
@@ -101,6 +107,19 @@
             {% for m in flag.mood_trend %}
                 {% if m <= 1 %}😞{% elif m == 2 %}😔{% elif m == 3 %}😐{% elif m == 4 %}🙂{% else %}😊{% endif %}
             {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if flag.assessment_summary %}
+        <div class="flag-assessment">
+            <div class="fa-header">📋 Therapy Assessment</div>
+            <div class="fa-score">
+                <span>Score: {{ flag.assessment_score }}/15</span>
+                <span class="badge badge-{{ 'urgent' if flag.assessment_risk == 'high' else 'concern' if flag.assessment_risk == 'elevated' else 'watch' if flag.assessment_risk == 'moderate' else 'reviewed' }}">
+                    {{ flag.assessment_risk }}
+                </span>
+            </div>
+            <div class="fa-summary">{{ flag.assessment_summary }}</div>
         </div>
         {% endif %}
 

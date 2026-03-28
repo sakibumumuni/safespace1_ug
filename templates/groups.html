@@ -7,19 +7,29 @@
     </header>
 
     <main class="app-content">
-        <div class="page-title">Peer Groups</div>
+        <div class="page-title">👥 Peer Groups</div>
         <div class="page-sub">Moderated by trained peer guides. Everyone is anonymous.</div>
 
         {% for group in groups %}
-        <a href="/group/{{ group._id }}" class="group-card">
+        <a href="/group/{{ group._id }}" class="group-card" style="animation-delay: {{ loop.index * 0.04 }}s;">
             <div class="group-emoji">{{ group.emoji }}</div>
             <div class="group-info">
                 <div class="group-name">{{ group.name }}</div>
                 <div class="group-desc">{{ group.desc }}</div>
-                <div class="group-meta">{{ group.members }} members · Led by {{ group.head }}</div>
+                <div class="group-meta">
+                    <span style="color: var(--green);">{{ group.members }}</span> members · Led by {{ group.head }}
+                </div>
             </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2" stroke-linecap="round" style="flex-shrink:0; opacity:0.5;"><polyline points="9 18 15 12 9 6"/></svg>
         </a>
         {% endfor %}
+
+        {% if not groups %}
+        <div style="text-align: center; padding: 50px 20px; color: var(--text-dim); font-size: 13px; animation: fadeInUp 0.5s ease both;">
+            <div style="font-size: 40px; margin-bottom: 12px; opacity: 0.7;">👥</div>
+            <div>No groups available yet. Check back soon.</div>
+        </div>
+        {% endif %}
     </main>
 
     {% set active = 'groups' %}

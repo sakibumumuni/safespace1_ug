@@ -3,11 +3,17 @@
 {% block body %}
 <div class="app-shell" style="height: 100vh; overflow: hidden;">
     <header class="app-header">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <a href="/home" style="color: var(--text-muted); font-size: 20px; text-decoration: none;">←</a>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <a href="/home" style="color: var(--text-muted); font-size: 18px; text-decoration: none; display: flex; align-items: center; padding: 4px; border-radius: 8px; transition: all 0.2s;"
+               onmouseover="this.style.background='var(--card)'" onmouseout="this.style.background='none'">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </a>
             <div>
                 <div style="font-size: 14px; font-weight: 600;">🛡️ UG Counselling</div>
-                <div style="font-size: 10px; color: var(--green);">Anonymous · Confidential</div>
+                <div style="font-size: 10px; display: flex; align-items: center; gap: 4px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:var(--green); display:inline-block;"></span>
+                    <span style="color: var(--green);">Anonymous · Confidential</span>
+                </div>
             </div>
         </div>
     </header>
@@ -25,10 +31,10 @@
             {% endfor %}
 
             {% if not messages %}
-            <div style="text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: 13px;">
-                <div style="font-size: 32px; margin-bottom: 10px;">🛡️</div>
-                <div style="margin-bottom: 6px;">This is your anonymous line to UG Counselling.</div>
-                <div>A counsellor may reach out here, or you can start the conversation. Your identity is never revealed.</div>
+            <div style="text-align: center; padding: 50px 20px; color: var(--text-dim); font-size: 13px; animation: fadeInUp 0.5s ease both;">
+                <div style="font-size: 40px; margin-bottom: 12px; opacity: 0.7;">🛡️</div>
+                <div style="font-weight: 500; margin-bottom: 6px;">Your anonymous line to UG Counselling</div>
+                <div style="max-width: 280px; margin: 0 auto; line-height: 1.6;">A counsellor may reach out here, or you can start the conversation. Your identity is never revealed.</div>
             </div>
             {% endif %}
         </div>
