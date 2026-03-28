@@ -28,9 +28,9 @@ A mobile-first web app where UG students can anonymously track mood, journal, ch
 ┌───────────────┐ ┌─────────────┐ ┌─────────────────────┐
 │  CLAUDE AI    │ │  CHECK-IN   │ │  STAFF DASHBOARD     │
 │  FLAG ENGINE  │ │  INTAKE     │ │  Review flags        │
-│  (Haiku 4.5)  │ │  (Haiku 4.5)│ │  Read intake summary │
+│  (Haiku 4.5)  │ │  (Local)    │ │  Read intake summary │
 │  Periodic     │ │  Text+Survey│ │  Initiate chat       │
-│  risk assess  │ │  → clinical │ │  Generate tokens     │
+│  risk assess  │ │  → instant  │ │  Generate tokens     │
 │  per user     │ │    summary  │ │  Set alert email     │
 └───────┬───────┘ └──────┬──────┘ └─────────────────────┘
         │                │
@@ -53,7 +53,7 @@ A mobile-first web app where UG students can anonymously track mood, journal, ch
 | Backend | Flask 3.1.0 (Python) |
 | Database | MongoDB Atlas (pymongo 4.9.1) |
 | AI/Flagging | Anthropic Claude API (Haiku 4.5) |
-| AI/Intake | Anthropic Claude API (Haiku 4.5) — clinical summary generation |
+| AI/Intake | Local summary generation (instant, no API call) |
 | Frontend | Vanilla JS, custom CSS (dark theme, glassmorphism, mobile-first) |
 | Email Alerts | SMTP SSL (Gmail / institutional, port 465) |
 | Auth | Session-based (students), access code (staff) |
@@ -68,7 +68,7 @@ A mobile-first web app where UG students can anonymously track mood, journal, ch
 - **Mandatory Daily Check-in** -- Before accessing the app each day, students complete a two-step intake:
   1. **Free-text mood description** -- "How are you feeling?" in their own words (English, Ghanaian Pidgin, or Twi). Minimum 10 characters.
   2. **5-question wellness survey** -- Brief screening inspired by PHQ-2/GAD-2 covering depression, anxiety, sleep, coping ability, and social support. Each question scored 0-3 (max total 15).
-  - Claude analyses both the free text and survey answers together to generate a clinical intake summary for counselling staff.
+  - The system generates an instant clinical intake summary locally from the score, risk level, and student's own words — no API call needed, so results appear immediately.
   - Students see a risk level result and a reassuring message after submission.
   - If the student already checked in today, they go straight to the home page.
 - **Mood Tracking** -- Daily 5-point emoji mood picker (Struggling to Great) with a 7-day bar chart trend on the home dashboard. This is separate from the check-in and used for quick mood logging throughout the day.
@@ -110,13 +110,8 @@ The check-in is the primary intake mechanism that gives counselling staff an ove
 1. **Mandatory gate** -- Every time a student opens the app, `/home` checks if they've completed today's check-in. If not, they're redirected to `/checkin`.
 2. **Step 1: Free text** -- The student describes how they're feeling in their own words. Supports English, Ghanaian Pidgin English ("Chale things no dey go well"), and Twi.
 3. **Step 2: Survey** -- Five screening questions (depression, anxiety, sleep, coping, social support), each scored 0-3.
-4. **Claude Analysis** -- Both the free text and survey answers are sent together to Claude Haiku 4.5, which generates a clinical intake summary paragraph. Claude is instructed to:
-   - Assess overall risk level based on both inputs
-   - Identify key emotional themes from the free text
-   - Note specific areas of concern from the survey
-   - Flag if the text and survey are inconsistent (one revealing more than the other)
-   - Suggest a focus area for the counselling session
-5. **Flagging** -- If the survey score is 4+ (moderate or above), a check-in flag is created with `flag_type: "checkin"` and sent to staff via email. The flag includes the student's own words and the AI clinical summary.
+4. **Instant Summary** -- The system generates a clinical intake summary locally using the computed score, risk level, and student's own words. No external API call is made, so results appear instantly with zero latency.
+5. **Flagging** -- If the survey score is 4+ (moderate or above), a check-in flag is created with `flag_type: "checkin"` and sent to staff via email. The flag includes the student's own words and the clinical summary.
 6. **Once per day** -- If the student has already checked in today, subsequent visits go straight to home.
 
 ### Risk Levels
@@ -366,6 +361,7 @@ python app.py
 | `SENDER_PASSWORD` | Gmail App Password (not regular password) | 16-char app-specific password |
 | `DIRECTORATE_EMAIL` | Default alert recipient | `counselling@ug.edu.gh` |
 | `STAFF_CODE` | Staff dashboard access code | `UG-COUNSEL-2026` |
+| `APP_URL` | Base URL for email links (set when deployed) | `https://safespace-ug.onrender.com` |
 | `PORT` | Server port | `5000` |
 
 ---
@@ -378,21 +374,21 @@ python app.py
 - Counsellors never see real identity unless the student chooses to reveal it
 - Journal, mood, and check-in data are tied only to the anonymous user document
 
-### Two Separate AI Systems
-- **Daily Check-in (intake)** -- Analyses the student's self-reported text + survey for a clinical snapshot. Generates its own flags with `flag_type: "checkin"` so staff can distinguish intake assessments from pattern-detected concerns.
-- **Periodic Flagging (monitoring)** -- Analyses mood trends, journal entries, and activity patterns over time. Catches deterioration that the student may not self-report.
-- Both systems use Claude Haiku 4.5 but with different prompts, different triggers, and different flag types.
+### Two Separate Systems
+- **Daily Check-in (intake)** -- Generates an instant local summary from the student's self-reported text + survey scores. Creates its own flags with `flag_type: "checkin"` so staff can distinguish intake assessments from pattern-detected concerns. No API call — zero latency.
+- **Periodic Flagging (monitoring)** -- Uses Claude Haiku 4.5 to analyse mood trends, journal entries, and activity patterns over time. Catches deterioration that the student may not self-report.
+- The check-in is fast (local computation) while periodic flagging is thorough (AI-powered).
 
 ### Mandatory Check-in as Counselling Prep
 - The check-in gives counsellors context before any session — they read the clinical summary and the student's own words
 - Free-text captures nuance that multiple-choice can't (tone, specific stressors, language patterns)
 - Survey provides standardised scoring for triage and prioritisation
-- Combined analysis catches inconsistencies (e.g. student says "I'm fine" but scores high on every question)
+- Summary is generated locally from score + risk level + student text — instant results with no API dependency
 
 ### Email as Integration Layer
 - UG staff already use institutional email -- zero new software needed on their side
 - Email serves as the notification; the dashboard is where action happens
-- HTML emails are styled and include clickable links to the dashboard
+- HTML emails are styled and include clickable links to the dashboard using the configurable `APP_URL` (no hardcoded localhost)
 - Supports both SMTP SSL (port 465) and STARTTLS (port 587)
 - Recipient email can be swapped live from the dashboard for demos
 
