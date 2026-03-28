@@ -808,40 +808,38 @@ def submit_checkin():
         {"$set": {"last_active": datetime.utcnow()}, "$inc": {"usage_streak": 1}}
     )
 
-    # ── Create a check-in flag for staff (separate from periodic flags) ──
-    # Only create if moderate or above, or if text is concerning
-    if total_score >= 4:
-        # Deduplicate: don't double-flag from same check-in session
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        existing_checkin_flag = flags_col.find_one({
+    # ── Create a check-in flag for staff and send email report ──
+    # Every daily check-in generates a report for the directorate
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    existing_checkin_flag = flags_col.find_one({
+        "user_id": user_id,
+        "flag_type": "checkin",
+        "created_at": {"$gte": today_start},
+    })
+    if not existing_checkin_flag:
+        severity = "urgent" if risk_level == "high" else "concern" if risk_level == "elevated" else "watch"
+        flag = {
             "user_id": user_id,
+            "user_token": token,
             "flag_type": "checkin",
-            "created_at": {"$gte": today_start},
-        })
-        if not existing_checkin_flag:
-            severity = "urgent" if risk_level == "high" else "concern" if risk_level == "elevated" else "watch"
-            flag = {
-                "user_id": user_id,
-                "user_token": token,
-                "flag_type": "checkin",
-                "severity": severity,
-                "reasons": [f"Daily check-in: {risk_level} risk ({total_score}/15)"],
-                "reason": f"Daily check-in: {risk_level} risk ({total_score}/15)",
-                "mood_trend": [],
-                "journal_excerpt": mood_text[:200],
-                "assessment_score": total_score,
-                "assessment_risk": risk_level,
-                "assessment_summary": clinical_summary,
-                "status": "pending",
-                "created_at": datetime.utcnow(),
-                "flagged_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
-                "dashboard_url": f"{APP_URL}/staff/dashboard",
-                "reviewed_by": None,
-                "action_taken": None,
-            }
-            result = flags_col.insert_one(flag)
-            flag["_id"] = result.inserted_id
-            send_flag_email(flag)
+            "severity": severity,
+            "reasons": [f"Daily check-in: {risk_level} risk ({total_score}/15)"],
+            "reason": f"Daily check-in: {risk_level} risk ({total_score}/15)",
+            "mood_trend": [],
+            "journal_excerpt": mood_text[:200],
+            "assessment_score": total_score,
+            "assessment_risk": risk_level,
+            "assessment_summary": clinical_summary,
+            "status": "pending",
+            "created_at": datetime.utcnow(),
+            "flagged_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+            "dashboard_url": f"{APP_URL}/staff/dashboard",
+            "reviewed_by": None,
+            "action_taken": None,
+        }
+        result = flags_col.insert_one(flag)
+        flag["_id"] = result.inserted_id
+        send_flag_email(flag)
 
     # Run AI-powered flag check (uses mood + journal data saved above)
     check_and_flag_user(user_id)
