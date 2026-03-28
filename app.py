@@ -748,29 +748,14 @@ def submit_checkin():
 
     answers_text = "\n\n".join(answer_lines)
 
-    # ── Ask Claude to analyse text + survey together ──────
+    # ── Generate summary locally (no API call — instant) ──────
     risk = "low" if total_score <= 3 else "moderate" if total_score <= 7 else "elevated" if total_score <= 11 else "high"
-    summary_prompt = f"""Clinical intake for a university student. Score: {total_score}/15 ({risk}).
-Student wrote: "{mood_text}"
-Survey: {answers_text}
-
-Write a 3-sentence counsellor briefing: risk level, key concerns, suggested session focus. Under 60 words. No identity."""
-
-    try:
-        message = claude_client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=120,
-            messages=[{"role": "user", "content": summary_prompt}],
-        )
-        clinical_summary = message.content[0].text.strip()
-    except Exception as e:
-        print(f"[CHECKIN SUMMARY ERROR] {e}")
-        risk = "low" if total_score <= 3 else "moderate" if total_score <= 7 else "elevated" if total_score <= 11 else "high"
-        clinical_summary = (
-            f"Check-in score: {total_score}/15 ({risk} concern). "
-            f"Student wrote: \"{mood_text[:100]}{'...' if len(mood_text) > 100 else ''}\". "
-            f"AI summary unavailable — please review the raw text."
-        )
+    risk_labels = {"low": "Low concern", "moderate": "Moderate concern", "elevated": "Elevated concern", "high": "High concern"}
+    clinical_summary = (
+        f"{risk_labels[risk]} — score {total_score}/15. "
+        f"Student wrote: \"{mood_text[:120]}{'…' if len(mood_text) > 120 else ''}\". "
+        f"Review survey responses and mood text before session."
+    )
 
     # Determine risk level
     if total_score <= 3:
