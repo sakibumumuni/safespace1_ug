@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}SafeSpace UG — Journal{% endblock %}
+{% block body %}
+<div class="app-shell">
+    <header class="app-header">
+        <div class="logo">🛡️ Safe<span>Space</span></div>
+        <div class="user-badge">{{ user.anon_name }}</div>
+    </header>
+
+    <main class="app-content">
+        <div class="page-title">Journal</div>
+        <div class="page-sub">Write freely. Your entries are private and encrypted.</div>
+
+        <textarea id="journal-input" class="input" rows="6" placeholder="What's on your mind today?" style="margin-bottom: 12px;"></textarea>
+        
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 24px;">
+            <button id="journal-save-btn" class="btn btn-primary" onclick="saveJournal()">Save Entry</button>
+        </div>
+
+        <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Past Entries</div>
+        
+        <div id="journal-entries">
+            {% for entry in entries %}
+            <div class="journal-entry">
+                <div class="j-date">{{ entry.created_at.strftime('%b %d, %Y · %I:%M %p') }}</div>
+                <div class="j-preview">{{ entry.content[:200] }}{% if entry.content|length > 200 %}...{% endif %}</div>
+            </div>
+            {% endfor %}
+            
+            {% if not entries %}
+            <div style="text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: 13px;">
+                <div style="font-size: 32px; margin-bottom: 10px;">📝</div>
+                Your journal is empty. Start writing to track your thoughts.
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    {% set active = 'journal' %}
+    {% include "nav.html" %}
+</div>
+{% endblock %}

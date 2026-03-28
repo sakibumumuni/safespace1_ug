@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}SafeSpace UG — Peer Groups{% endblock %}
+{% block body %}
+<div class="app-shell">
+    <header class="app-header">
+        <div class="logo">🛡️ Safe<span>Space</span></div>
+    </header>
+
+    <main class="app-content">
+        <div class="page-title">Peer Groups</div>
+        <div class="page-sub">Moderated by trained peer guides. Everyone is anonymous.</div>
+
+        {% for group in groups %}
+        <a href="/group/{{ group._id }}" class="group-card">
+            <div class="group-emoji">{{ group.emoji }}</div>
+            <div class="group-info">
+                <div class="group-name">{{ group.name }}</div>
+                <div class="group-desc">{{ group.desc }}</div>
+                <div class="group-meta">{{ group.members }} members · Led by {{ group.head }}</div>
+            </div>
+        </a>
+        {% endfor %}
+    </main>
+
+    {% set active = 'groups' %}
+    {% include "nav.html" %}
+</div>
+{% endblock %}

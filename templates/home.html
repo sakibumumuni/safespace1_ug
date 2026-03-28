@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}SafeSpace UG — Home{% endblock %}
+{% block body %}
+<div class="app-shell">
+    <header class="app-header">
+        <div class="logo">🛡️ Safe<span>Space</span></div>
+        <div class="user-badge">{{ user.anon_name }}</div>
+    </header>
+
+    <main class="app-content">
+        {# ── Counsellor Notification ─────────────────────── #}
+        {% if notifications %}
+        <div class="notif-banner purple">
+            <div class="notif-label" style="color: var(--purple);">
+                🛡️ From UG Counselling
+            </div>
+            <div class="notif-text">
+                {{ notifications[0].text }}
+            </div>
+            <div class="notif-actions">
+                <a href="/counsellor-chat" class="btn btn-purple btn-sm">Start Anonymous Chat</a>
+                <button class="btn btn-ghost btn-sm" onclick="this.closest('.notif-banner').style.display='none'">Maybe Later</button>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Session Token ───────────────────────────────── #}
+        {% if active_token %}
+        <div class="card">
+            <div style="font-size: 13px; font-weight: 600; color: var(--green); display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                🔑 Private Session Code
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">
+                A counsellor would like to offer you support:
+            </div>
+            <div class="token-code">#{{ active_token.code }}</div>
+            <div style="font-size: 11px; color: var(--text-dim); margin-top: 6px;">
+                Visit the Counselling Centre with this code or <a href="/counsellor-chat">chat anonymously</a>. No one will know who you are.
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Mood Check ──────────────────────────────────── #}
+        <div class="card">
+            <div class="card-header">How are you today?</div>
+            <div class="card-sub">Your mood is private and never shared</div>
+            <div class="mood-picker">
+                {% set moods = [
+                    (1, "😞", "Struggling", "#EF6B6B"),
+                    (2, "😔", "Low", "#F0B95A"),
+                    (3, "😐", "Okay", "#8B90A5"),
+                    (4, "🙂", "Good", "#6C9BF2"),
+                    (5, "😊", "Great", "#5ECE8A")
+                ] %}
+                {% for val, emoji, label, color in moods %}
+                <button class="mood-btn {% if today_mood and today_mood.value == val %}selected{% endif %}"
+                        data-value="{{ val }}"
+                        onclick="selectMood({{ val }})"
+                        {% if today_mood and today_mood.value == val %}
+                        style="border-color: {{ color }}; background: {{ color }}18;"
+                        {% endif %}>
+                    <div class="mood-emoji">{{ emoji }}</div>
+                    <div class="mood-label"
+                         {% if today_mood and today_mood.value == val %}style="color: {{ color }};"{% endif %}>
+                        {{ label }}
+                    </div>
+                </button>
+                {% endfor %}
+            </div>
+            <div id="mood-feedback" class="mood-logged" style="display: {% if today_mood %}flex{% else %}none{% endif %};">
+                ✓ Mood logged
+            </div>
+        </div>
+
+        {# ── Mood Trend ──────────────────────────────────── #}
+        {% if recent_moods %}
+        <div class="card">
+            <div class="card-header">Your Week</div>
+            <div class="mood-chart" style="margin-top: 12px;">
+                {% for mood in recent_moods %}
+                {% set pct = (mood.value / 5) * 100 %}
+                {% set colors = {1: "var(--red)", 2: "var(--amber)", 3: "var(--text-muted)", 4: "var(--accent)", 5: "var(--green)"} %}
+                <div class="mood-bar" style="height: {{ pct }}%; background: {{ colors[mood.value] }}; opacity: 0.7;">
+                    <span class="bar-label">{{ mood.created_at.strftime('%d') }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Quick Links ─────────────────────────────────── #}
+        <div class="quick-grid">
+            <a href="/journal" class="quick-card">
+                <div class="q-icon">📝</div>
+                <div class="q-label">Journal</div>
+            </a>
+            <a href="/groups" class="quick-card">
+                <div class="q-icon">👥</div>
+                <div class="q-label">Peer Groups</div>
+            </a>
+            <a href="/crisis" class="quick-card">
+                <div class="q-icon">🆘</div>
+                <div class="q-label">Crisis Help</div>
+            </a>
+            <a href="/counsellor-chat" class="quick-card">
+                <div class="q-icon">🛡️</div>
+                <div class="q-label">Counsellor</div>
+            </a>
+        </div>
+    </main>
+
+    {% set active = 'home' %}
+    {% include "nav.html" %}
+</div>
+{% endblock %}

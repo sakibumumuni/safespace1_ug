@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}SafeSpace UG — Staff Dashboard{% endblock %}
+{% block body %}
+<div class="staff-shell">
+    <div class="staff-header">
+        <div>
+            <h1>🏥 Counselling Dashboard</h1>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                University of Ghana · Flagged Cases & Anonymous Outreach
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="staff-label">{{ session.get('staff_name', 'Staff') }}</span>
+            <a href="/" class="btn btn-ghost btn-sm">Logout</a>
+        </div>
+    </div>
+
+    {# ── Stats Row ────────────────────────────────────── #}
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-num text-accent">{{ stats.total_users }}</div>
+            <div class="stat-label">Total Users</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-num text-green">{{ stats.active_today }}</div>
+            <div class="stat-label">Active Today</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-num text-amber">{{ stats.pending_flags }}</div>
+            <div class="stat-label">Pending Flags</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-num text-red">{{ stats.urgent_flags }}</div>
+            <div class="stat-label">Urgent</div>
+        </div>
+    </div>
+
+    {# ── Actions ──────────────────────────────────────── #}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 10px;">
+        <div style="font-size: 16px; font-weight: 600;">Flagged Cases</div>
+        <button id="run-flagging-btn" class="btn btn-ghost btn-sm" onclick="runFlagging()">
+            🔄 Run Flagging Check
+        </button>
+    </div>
+
+    {# ── Set Alert Email (for demo) ─────────────────── #}
+    <div class="card" style="border-color: var(--green); border-color: rgba(94,206,138,0.2); margin-bottom: 20px;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--green); margin-bottom: 8px;">
+            📧 Alert Recipient Email
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+            Flag alerts are sent to this email. Change it live for demos.
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <input type="email" id="demo-email" placeholder="judge@example.com"
+                   style="flex:1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px;">
+            <button class="btn btn-green btn-sm" onclick="setDemoEmail()">Set</button>
+        </div>
+        <div id="email-feedback" style="font-size: 11px; color: var(--green); margin-top: 6px; display: none;"></div>
+    </div>
+
+    {# ── How Flagging Works (info card) ───────────────── #}
+    <div class="card" style="border-color: var(--accent); border-color: rgba(108,155,242,0.2); margin-bottom: 20px;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 8px;">
+            ℹ️ How Email Alerts Work
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+            The system automatically checks each user on periodic intervals based on severity tier:
+            <strong>Urgent</strong> (every 24h), <strong>Concern</strong> (every 48h), <strong>Watch</strong> (every 72h).
+            When flagged, a structured email is sent to the configured recipient with the anonymous
+            user token, mood trend, and journal excerpts. The student's identity is never included.
+            You can also manually trigger a check using the button above.
+        </div>
+    </div>
+
+    {# ── Flag Cards ───────────────────────────────────── #}
+    {% for flag in flags %}
+    <div class="flag-card" id="flag-{{ flag._id }}">
+        <div class="flag-header">
+            <div>
+                <span class="flag-token {% if flag.severity == 'urgent' %}text-red{% elif flag.severity == 'concern' %}text-amber{% else %}text-accent{% endif %}">
+                    #{{ flag.user_token }}
+                </span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+                <span class="badge badge-{{ flag.severity }}">{{ flag.severity }}</span>
+                <span class="badge badge-{{ 'reviewed' if flag.status in ['reviewed', 'action_taken', 'resolved'] else 'pending' }}">
+                    {{ flag.status }}
+                </span>
+            </div>
+        </div>
+
+        <div class="flag-reason">{{ flag.reason }}</div>
+
+        {% if flag.journal_excerpt %}
+        <div class="flag-excerpt">"{{ flag.journal_excerpt[:200] }}{% if flag.journal_excerpt|length > 200 %}...{% endif %}"</div>
+        {% endif %}
+
+        {% if flag.mood_trend %}
+        <div class="flag-mood-trend">
+            {% for m in flag.mood_trend %}
+                {% if m <= 1 %}😞{% elif m == 2 %}😔{% elif m == 3 %}😐{% elif m == 4 %}🙂{% else %}😊{% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="flag-actions">
+            {% if flag.status == 'pending' %}
+            <button class="btn btn-ghost btn-sm" onclick="reviewFlag('{{ flag._id }}')">
+                ✓ Mark Reviewed
+            </button>
+            {% endif %}
+            <button class="btn btn-purple btn-sm" onclick="initiateChat('{{ flag._id }}', 1)">
+                💬 Session 1: Resources
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="initiateChat('{{ flag._id }}', 2)">
+                💬 Session 2: Ready to Chat
+            </button>
+            <button class="btn btn-green btn-sm" onclick="initiateChat('{{ flag._id }}', 3)">
+                💬 Session 3: Not Alone
+            </button>
+            <button class="btn btn-sm" style="background: var(--amber); color: #0F1117;" onclick="generateToken('{{ flag._id }}')">
+                🔑 Generate Token
+            </button>
+            <a href="/staff/chat/{{ flag.user_id }}" class="btn btn-ghost btn-sm">
+                Open Full Chat →
+            </a>
+        </div>
+
+        <div class="flag-meta">
+            Flagged: {{ flag.flagged_at }}
+            {% if flag.reviewed_by %} · Reviewed by {{ flag.reviewed_by }}{% endif %}
+            {% if flag.action_taken %} · Action: {{ flag.action_taken }}{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not flags %}
+    <div style="text-align: center; padding: 60px 20px; color: var(--text-dim);">
+        <div style="font-size: 36px; margin-bottom: 12px;">✓</div>
+        <div style="font-size: 14px;">No flagged cases at the moment.</div>
+        <div style="font-size: 12px; margin-top: 4px;">The system checks users periodically based on configured intervals.</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

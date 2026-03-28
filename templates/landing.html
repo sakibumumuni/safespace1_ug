@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}SafeSpace UG — You Are Not Alone{% endblock %}
+{% block body %}
+<div class="landing">
+    <div class="landing-logo">🛡️</div>
+    <h1>Safe<span>Space</span> UG</h1>
+    <div class="subtitle">
+        A safe, anonymous space for University of Ghana students to track their mental health, connect with peers, and access support — without ever revealing who they are.
+    </div>
+
+    <div class="promises">
+        <div class="promise">
+            <div class="p-icon" style="background: var(--accent-soft);">🔒</div>
+            <span>Completely anonymous — no name, no ID, no tracking</span>
+        </div>
+        <div class="promise">
+            <div class="p-icon" style="background: var(--green-soft);">💚</div>
+            <span>Track your mood and journal privately</span>
+        </div>
+        <div class="promise">
+            <div class="p-icon" style="background: var(--purple-soft);">👥</div>
+            <span>Peer groups led by trained student guides</span>
+        </div>
+        <div class="promise">
+            <div class="p-icon" style="background: var(--amber-soft);">🤝</div>
+            <span>Connected to UG Counselling Directorate</span>
+        </div>
+    </div>
+
+    <form action="/api/auth/register" method="POST" id="register-form" style="width: 100%; max-width: 300px;">
+        <button type="submit" class="btn btn-primary btn-full" style="padding: 14px; font-size: 15px;">
+            Enter Anonymously
+        </button>
+    </form>
+
+    <div style="margin-top: 24px; font-size: 12px; color: var(--text-dim);">
+        No signup. No email. No personal data collected.
+    </div>
+
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); width: 100%; max-width: 300px;">
+        <a href="/staff/login" style="font-size: 12px; color: var(--text-dim);">
+            🏥 UG Counselling Staff Login →
+        </a>
+    </div>
+</div>
+
+<script>
+document.getElementById("register-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const res = await fetch("/api/auth/register", { method: "POST", headers: {"Content-Type": "application/json"} });
+    const data = await res.json();
+    if (data.ok) window.location.href = "/home";
+});
+</script>
+{% endblock %}

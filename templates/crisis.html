@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}SafeSpace UG — Crisis Support{% endblock %}
+{% block body %}
+<div class="app-shell">
+    <header class="app-header">
+        <div class="logo">🛡️ Safe<span>Space</span></div>
+    </header>
+
+    <main class="app-content">
+        <div class="page-title" style="color: var(--red);">Crisis Support</div>
+        <div class="page-sub">If you are in immediate danger, please reach out now.</div>
+
+        <div class="crisis-card">
+            <div style="font-size: 14px; font-weight: 600; color: var(--red); margin-bottom: 4px;">
+                UG Counselling Directorate
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
+                University of Ghana, Legon
+            </div>
+            <div class="crisis-num">
+                030 290 2014
+            </div>
+            <a href="tel:0302902014" class="btn btn-red" style="margin-top: 8px;">
+                📞 Call Now
+            </a>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Other Resources</div>
+            <div style="margin-top: 12px;">
+                <div style="padding: 10px 0; border-bottom: 1px solid var(--border);">
+                    <div style="font-size: 13px; font-weight: 600;">Mental Health Authority Ghana</div>
+                    <div style="font-size: 12px; color: var(--text-muted);">0800 678 678 (Toll-free)</div>
+                </div>
+                <div style="padding: 10px 0; border-bottom: 1px solid var(--border);">
+                    <div style="font-size: 13px; font-weight: 600;">Ghana Health Service Helpline</div>
+                    <div style="font-size: 12px; color: var(--text-muted);">112 (Emergency)</div>
+                </div>
+                <div style="padding: 10px 0;">
+                    <div style="font-size: 13px; font-weight: 600;">University Health Services</div>
+                    <div style="font-size: 12px; color: var(--text-muted);">030 250 0301</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="border-color: var(--purple); border-color: rgba(167,139,250,0.3);">
+            <div style="font-size: 14px; font-weight: 600; color: var(--purple); margin-bottom: 8px;">
+                Prefer to chat anonymously?
+            </div>
+            <div style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+                You can reach a UG counsellor through SafeSpace without revealing your identity.
+            </div>
+            <a href="/counsellor-chat" class="btn btn-purple">Open Anonymous Chat</a>
+        </div>
+
+        <div style="text-align: center; padding: 20px; font-size: 12px; color: var(--text-dim); line-height: 1.6;">
+            You matter. What you're feeling right now is real, and it's okay to ask for help. Reaching out is a sign of strength, not weakness.
+        </div>
+    </main>
+
+    {% set active = 'crisis' %}
+    {% include "nav.html" %}
+</div>
+{% endblock %}
