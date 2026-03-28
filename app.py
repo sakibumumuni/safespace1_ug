@@ -101,6 +101,10 @@ def login_required(f):
     def decorated(*args, **kwargs):
         if not session.get("user_id"):
             return redirect(url_for("landing"))
+        # Verify user still exists in DB (handles stale sessions after DB wipe)
+        if not users_col.find_one({"_id": ObjectId(session["user_id"])}):
+            session.clear()
+            return redirect(url_for("landing"))
         return f(*args, **kwargs)
     return decorated
 

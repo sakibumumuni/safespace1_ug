@@ -4,18 +4,18 @@ Mental health is taking the lives of young Ghanaians, especially university stud
 
 **Anonymous Mental Health Support for University of Ghana Students**
 
-A mobile-first web app where UG students can anonymously track mood, journal, chat in peer support groups, and get connected to crisis support — all without ever revealing their identity. An AI-powered flagging engine monitors for signs of distress and alerts the UG Counselling Directorate via structured email so staff can intervene early.
+A mobile-first web app where UG students can anonymously track mood, journal, chat in peer support groups, and get connected to crisis support — all without ever revealing their identity. A mandatory daily check-in with free-text mood description and a clinical survey gives counselling staff an intake overview of each student's state before any in-person session. An AI-powered flagging engine monitors for signs of distress and alerts the UG Counselling Directorate via structured email so staff can intervene early.
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                      STUDENT APP                          │
-│   Landing  ->  Home  ->  Mood / Journal / Groups / Crisis │
-│                  ↕  Anonymous Counsellor Chat              │
-└────────────────────────┬─────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                        STUDENT APP                            │
+│  Landing -> Check-in -> Home -> Mood / Journal / Groups / Crisis │
+│                  ↕  Anonymous Counsellor Chat                  │
+└────────────────────────┬─────────────────────────────────────┘
                          │  Flask API
                          v
                 ┌────────────────┐
@@ -23,21 +23,25 @@ A mobile-first web app where UG students can anonymously track mood, journal, ch
                 │  Atlas Cluster │
                 └───────┬────────┘
                         │
-           ┌────────────┴────────────┐
-           v                         v
-   ┌───────────────┐      ┌─────────────────────┐
-   │  CLAUDE AI    │      │  STAFF DASHBOARD     │
-   │  FLAG ENGINE  │─────>│  Review flags        │
-   │  (Haiku 4.5)  │      │  Initiate chat       │
-   │  Risk assess  │      │  Generate tokens     │
-   │  per user     │      │  Set alert email     │
-   └───────┬───────┘      └─────────────────────┘
-           │
-           v
-   ┌───────────────┐
-   │  EMAIL ALERT  │  Structured HTML email to
-   │  (SMTP SSL)   │  configurable recipient
-   └───────────────┘
+        ┌───────────────┼───────────────────┐
+        v               v                   v
+┌───────────────┐ ┌─────────────┐ ┌─────────────────────┐
+│  CLAUDE AI    │ │  CHECK-IN   │ │  STAFF DASHBOARD     │
+│  FLAG ENGINE  │ │  INTAKE     │ │  Review flags        │
+│  (Haiku 4.5)  │ │  (Haiku 4.5)│ │  Read intake summary │
+│  Periodic     │ │  Text+Survey│ │  Initiate chat       │
+│  risk assess  │ │  → clinical │ │  Generate tokens     │
+│  per user     │ │    summary  │ │  Set alert email     │
+└───────┬───────┘ └──────┬──────┘ └─────────────────────┘
+        │                │
+        v                v
+┌───────────────┐  ┌───────────────┐
+│  EMAIL ALERT  │  │  CHECK-IN     │
+│  (SMTP SSL)   │  │  FLAGS        │
+│  Structured   │  │  (separate    │
+│  HTML email   │  │   from        │
+│  to recipient │  │   periodic)   │
+└───────────────┘  └───────────────┘
 ```
 
 ---
@@ -49,7 +53,8 @@ A mobile-first web app where UG students can anonymously track mood, journal, ch
 | Backend | Flask 3.1.0 (Python) |
 | Database | MongoDB Atlas (pymongo 4.9.1) |
 | AI/Flagging | Anthropic Claude API (Haiku 4.5) |
-| Frontend | Vanilla JS, custom CSS (dark theme, mobile-first) |
+| AI/Intake | Anthropic Claude API (Haiku 4.5) — clinical summary generation |
+| Frontend | Vanilla JS, custom CSS (dark theme, glassmorphism, mobile-first) |
 | Email Alerts | SMTP SSL (Gmail / institutional, port 465) |
 | Auth | Session-based (students), access code (staff) |
 
@@ -60,10 +65,16 @@ A mobile-first web app where UG students can anonymously track mood, journal, ch
 ### Student-Facing
 
 - **Anonymous Entry** -- No signup, no email, no personal data. Students click "Enter Anonymously" and receive a generated identity (e.g. `Anon-BraveRiver`, token `#UG-7742`).
-- **Mood Tracking** -- Daily 5-point mood picker (Struggling to Great) with a 7-day bar chart trend on the home dashboard.
-- **Private Journal** -- Free-form writing space. Entries are stored per user and never shared unless the AI detects crisis signals.
+- **Mandatory Daily Check-in** -- Before accessing the app each day, students complete a two-step intake:
+  1. **Free-text mood description** -- "How are you feeling?" in their own words (English, Ghanaian Pidgin, or Twi). Minimum 10 characters.
+  2. **5-question wellness survey** -- Brief screening inspired by PHQ-2/GAD-2 covering depression, anxiety, sleep, coping ability, and social support. Each question scored 0-3 (max total 15).
+  - Claude analyses both the free text and survey answers together to generate a clinical intake summary for counselling staff.
+  - Students see a risk level result and a reassuring message after submission.
+  - If the student already checked in today, they go straight to the home page.
+- **Mood Tracking** -- Daily 5-point emoji mood picker (Struggling to Great) with a 7-day bar chart trend on the home dashboard. This is separate from the check-in and used for quick mood logging throughout the day.
+- **Private Journal** -- Free-form writing space with character counter. Entries are stored per user and never shared unless the AI detects crisis signals.
 - **Peer Support Groups** -- Six themed anonymous group chats (Anxiety & Worry, Loneliness, Academic Pressure, Grief & Loss, Self-Worth, Relationships), each with a named peer guide. Member count increases automatically when a user sends their first message in a group.
-- **Message Deletion** -- Users can delete their own messages in group chats via a trash icon next to the timestamp.
+- **Message Deletion** -- Users can delete their own messages in group chats with smooth fade-out animation.
 - **Anonymous Counsellor Chat** -- Direct messaging line to UG Counselling. Messages poll every 5 seconds. Students see a notification banner on the home page when a counsellor replies.
 - **Crisis Resources** -- Dedicated page with UG Counselling (030 290 2014), Mental Health Authority Ghana (0800 678 678), Ghana Health Service (112), and UG Health Services (030 250 0301).
 - **Session Tokens** -- If a counsellor generates a one-time code (e.g. `#UG-3391`), the student sees it on their home page and can walk into the Counselling Centre with just that code — no name needed.
@@ -71,21 +82,57 @@ A mobile-first web app where UG students can anonymously track mood, journal, ch
 ### Staff-Facing
 
 - **Staff Dashboard** -- Protected view showing stats (total users, active today, pending flags, urgent flags) and all flag cards sorted by severity.
+- **Two Flag Types** -- The dashboard distinguishes between:
+  - **Check-in flags** (purple badge) -- Generated from the daily intake, include the student's own words and clinical summary
+  - **Periodic flags** -- Generated by the AI flagging engine from mood trends and journal patterns
+- **Clinical Intake Summary** -- Each check-in flag shows:
+  - The student's free-text mood description ("Student's own words")
+  - Survey score out of 15 with risk level badge (low/moderate/elevated/high)
+  - AI-generated clinical summary paragraph that counsellors can read before an in-person session
 - **Live Email Recipient Swap** -- A card on the dashboard lets staff change the alert email recipient on the fly — useful for demos and pitches without restarting the app.
-- **Flag Review Workflow** -- Each flag card shows the anonymous token, severity badge, mood emoji trend, journal excerpt, and action buttons.
+- **Flag Review Workflow** -- Each flag card shows the anonymous token, severity badge, mood emoji trend, journal excerpt or student's own words, assessment summary, and action buttons.
 - **3-Stage Chat Initiation** -- Pre-written outreach messages that staff can send in sequence:
   1. "Resources are available if you need them. You are not alone."
   2. "A counsellor is ready to chat — no names needed."
   3. "You do not have to go through this alone. We are here for you."
 - **Token Generation** -- Create a one-time anonymous meeting code (expires in 7 days) for bridging digital support to in-person care.
-- **Free-Form Chat** -- Full anonymous conversation view per flagged user with context card showing the flag reason and journal excerpt.
+- **Free-Form Chat** -- Full anonymous conversation view per flagged user with context card showing the flag reason, journal excerpt, and assessment summary.
 - **Manual Flagging Trigger** -- "Run Flagging Check" button that scans all recently active users through the AI engine.
 
 ---
 
-## AI-Powered Flagging Engine
+## Daily Check-in System
 
-The core of SafeSpace UG's early-intervention system. Instead of brittle keyword lists, the flagging engine sends structured student data to **Claude Haiku 4.5** for intelligent risk assessment.
+The check-in is the primary intake mechanism that gives counselling staff an overview of a student's mental state before any in-person session. It is **completely separate** from the periodic AI flagging engine.
+
+### How It Works
+
+1. **Mandatory gate** -- Every time a student opens the app, `/home` checks if they've completed today's check-in. If not, they're redirected to `/checkin`.
+2. **Step 1: Free text** -- The student describes how they're feeling in their own words. Supports English, Ghanaian Pidgin English ("Chale things no dey go well"), and Twi.
+3. **Step 2: Survey** -- Five screening questions (depression, anxiety, sleep, coping, social support), each scored 0-3.
+4. **Claude Analysis** -- Both the free text and survey answers are sent together to Claude Haiku 4.5, which generates a clinical intake summary paragraph. Claude is instructed to:
+   - Assess overall risk level based on both inputs
+   - Identify key emotional themes from the free text
+   - Note specific areas of concern from the survey
+   - Flag if the text and survey are inconsistent (one revealing more than the other)
+   - Suggest a focus area for the counselling session
+5. **Flagging** -- If the survey score is 4+ (moderate or above), a check-in flag is created with `flag_type: "checkin"` and sent to staff via email. The flag includes the student's own words and the AI clinical summary.
+6. **Once per day** -- If the student has already checked in today, subsequent visits go straight to home.
+
+### Risk Levels
+
+| Score | Level | Action |
+|-------|-------|--------|
+| 0-3 | Low | No flag created. Student gets a reassuring message. |
+| 4-7 | Moderate | Flag created (severity: watch). Staff can review. |
+| 8-11 | Elevated | Flag created (severity: concern). Staff alerted via email. |
+| 12-15 | High | Flag created (severity: urgent). Staff alerted immediately. |
+
+---
+
+## AI-Powered Periodic Flagging Engine
+
+Separate from the daily check-in, this engine runs on mood logs and journal saves to catch patterns over time.
 
 ### How It Works
 
@@ -94,6 +141,7 @@ The core of SafeSpace UG's early-intervention system. Instead of brittle keyword
    - Last 7 mood entries (values 1-5)
    - Last 5 journal excerpts (up to 300 chars each)
    - Days of inactivity and usage streak length
+   - Latest check-in assessment (if available)
 3. **Claude Analysis** -- All data is sent as a JSON payload to Claude with a system prompt that instructs it to assess risk across multiple dimensions:
    - Crisis language (suicidal ideation, self-harm, hopelessness) in **English, Ghanaian Pidgin, and Twi**
    - Persistently low moods (3+ entries at 2 or below)
@@ -108,10 +156,9 @@ The core of SafeSpace UG's early-intervention system. Instead of brittle keyword
      "reasons": ["Sustained mood at 1 over 3 days", "Journal expresses hopelessness in Twi"]
    }
    ```
-5. **Markdown Stripping** -- The response is cleaned of any markdown fences before JSON parsing.
-6. **Deduplication** -- If the same user was flagged within the severity-based interval, the flag is skipped to avoid alert spam.
-7. **Flag Creation** -- A flag document is stored in MongoDB with severity, reasons, mood trend, and journal excerpt.
-8. **Email Alert** -- A styled HTML email is sent to the configured recipient with the anonymous token, severity, reasons, mood emoji trend, journal excerpt, and a clickable link to the staff dashboard.
+5. **Deduplication** -- If the same user was flagged within the severity-based interval, the flag is skipped to avoid alert spam.
+6. **Flag Creation** -- A flag document is stored in MongoDB with severity, reasons, mood trend, journal excerpt, and latest assessment data.
+7. **Email Alert** -- A styled HTML email is sent to the configured recipient with the anonymous token, severity, reasons, mood emoji trend, journal excerpt, assessment summary, and a clickable link to the staff dashboard.
 
 ### Severity Levels & Intervals
 
@@ -143,18 +190,21 @@ Subject: [SafeSpace URGENT] Anonymous user UG-7742 flagged for review
 
 - Anonymous token: #UG-7742 (never real identity)
 - Severity: URGENT
-- Reason: "Sustained mood at 1 over 3 days; journal expresses hopelessness"
+- Reason: "Daily check-in: high risk (13/15)" or "Sustained mood at 1 over 3 days"
 - Mood trend: 😐😔😔😞😔😞😞
-- Journal excerpt: "I don't see the point anymore..."
+- Student's own words / journal excerpt
+- Therapy Assessment: Score 13/15 — HIGH
+  Clinical summary paragraph from Claude
 - Clickable link to staff dashboard
 ```
 
 ### Staff Actions After Receiving Email
 
 1. **Review** -- Mark flag as reviewed on the dashboard
-2. **Chat Sessions 1-3** -- Send staged outreach messages to the student
-3. **Generate Token** -- Create a one-time code for anonymous in-person visit
-4. **Open Full Chat** -- Start a free-form anonymous conversation
+2. **Read Intake** -- Review the clinical summary and student's own words
+3. **Chat Sessions 1-3** -- Send staged outreach messages to the student
+4. **Generate Token** -- Create a one-time code for anonymous in-person visit
+5. **Open Full Chat** -- Start a free-form anonymous conversation
 
 ---
 
@@ -169,9 +219,10 @@ Subject: [SafeSpace URGENT] Anonymous user UG-7742 flagged for review
 | `journals` | Private journal entries | `user_id`, `content`, `created_at` |
 | `peer_groups` | Support group definitions | `name`, `emoji`, `desc`, `head`, `members` |
 | `messages` | Group chat messages | `group_id`, `user_id`, `anon_name`, `text`, `is_guide` |
-| `flags` | AI-generated risk flags | `user_token`, `severity`, `reasons`, `mood_trend`, `journal_excerpt`, `status` |
+| `flags` | Risk flags (check-in + periodic) | `user_token`, `flag_type`, `severity`, `reasons`, `mood_trend`, `journal_excerpt`, `assessment_score`, `assessment_risk`, `assessment_summary`, `status` |
 | `counsel_msgs` | Counsellor-student chat | `user_id`, `from` (user/counsellor), `text`, `read` |
 | `session_tokens` | One-time meeting codes | `code`, `used`, `expires_at`, `created_by` |
+| `assessments` | Daily check-in records | `user_id`, `user_token`, `mood_text`, `answers`, `total_score`, `risk_level`, `clinical_summary`, `created_at` |
 
 ---
 
@@ -181,9 +232,10 @@ Subject: [SafeSpace URGENT] Anonymous user UG-7742 flagged for review
 
 | Method | Route | Purpose |
 |--------|-------|---------|
-| POST | `/api/auth/register` | Create anonymous account |
-| POST | `/api/mood` | Log mood (1-5) + trigger flag check |
-| POST | `/api/journal` | Save journal entry + trigger flag check |
+| POST | `/api/auth/register` | Create anonymous account (sets `needs_checkin` flag) |
+| POST | `/api/checkin` | Submit daily check-in (mood text + survey answers) |
+| POST | `/api/mood` | Log emoji mood (1-5) + trigger periodic flag check |
+| POST | `/api/journal` | Save journal entry + trigger periodic flag check |
 | GET | `/api/journal/entries` | Fetch past entries (limit 20) |
 | GET | `/api/group/<id>/messages` | Fetch group chat messages |
 | POST | `/api/group/<id>/send` | Send group chat message + auto-join group |
@@ -207,7 +259,8 @@ Subject: [SafeSpace URGENT] Anonymous user UG-7742 flagged for review
 | Route | Page |
 |-------|------|
 | `/` | Landing (anonymous entry) |
-| `/home` | Student dashboard |
+| `/checkin` | Mandatory daily check-in (free-text + survey) |
+| `/home` | Student dashboard (redirects to `/checkin` if not done today) |
 | `/journal` | Journal |
 | `/groups` | Peer groups listing |
 | `/group/<id>` | Group chat room |
@@ -223,28 +276,43 @@ Subject: [SafeSpace URGENT] Anonymous user UG-7742 flagged for review
 
 ```
 safespace_ug/
-├── app.py                   # Flask backend — routes, API, AI flagging engine, email
+├── app.py                   # Flask backend — routes, API, check-in intake, AI flagging engine, email
 ├── requirements.txt         # Python dependencies (Flask, pymongo, anthropic, python-dotenv)
 ├── .env                     # Environment config (keys, DB URI, SMTP, staff code)
 ├── static/
 │   ├── css/
-│   │   └── style.css        # Dark theme, mobile-first stylesheet
+│   │   └── style.css        # Dark theme, glassmorphism, animations, mobile-first
 │   └── js/
-│       └── app.js           # Client-side JS (mood, journal, chat, delete, staff actions)
+│       └── app.js           # Client-side JS (mood, journal, chat, staff actions)
 └── templates/
     ├── base.html             # Master layout (head, scripts)
-    ├── nav.html              # Bottom navigation bar
-    ├── landing.html          # Anonymous entry page
-    ├── home.html             # Student dashboard (mood, chart, notifications)
-    ├── journal.html          # Private journal
-    ├── groups.html           # Peer group listing
+    ├── nav.html              # Bottom navigation bar (with active indicator)
+    ├── landing.html          # Anonymous entry page (ambient glow, staggered animations)
+    ├── checkin.html          # Mandatory daily check-in (2-step: text + survey)
+    ├── home.html             # Student dashboard (mood picker, chart, quick links)
+    ├── journal.html          # Private journal (with character counter)
+    ├── groups.html           # Peer group listing (with chevron indicators)
     ├── group_chat.html       # Group chat room (with message deletion)
-    ├── counsellor_chat.html  # Student-side counsellor chat
+    ├── counsellor_chat.html  # Student-side counsellor chat (online indicator)
     ├── crisis.html           # Crisis resources & hotlines
     ├── staff_login.html      # Staff authentication
-    ├── staff_dashboard.html  # Flag review dashboard (with live email swap)
-    └── staff_chat.html       # Counsellor-to-student chat
+    ├── staff_dashboard.html  # Flag review dashboard (check-in + periodic flags)
+    └── staff_chat.html       # Counsellor-to-student chat (with assessment context)
 ```
+
+---
+
+## UI/UX Design
+
+The interface uses a modern dark theme with warm, supportive aesthetics:
+
+- **Glassmorphism** -- Header and bottom nav use `backdrop-filter: blur()` with semi-transparent backgrounds for depth
+- **Animations** -- Staggered `fadeInUp` entrance animations on cards, groups, journal entries, and mood chart bars. Smooth slide transitions on the check-in steps.
+- **Micro-interactions** -- Mood emoji bounce on selection, quick-link icon rotation on hover, group cards slide right on hover, ripple effect on buttons, smooth chat message fade-out on deletion
+- **Ambient effects** -- Radial glow orbs on the landing page, gradient text on the brand name, pulsing notification dot
+- **Step indicator** -- The check-in page shows a two-step progress indicator with dot states (active, done)
+- **Accessibility** -- `prefers-reduced-motion` media query disables all animations for users who need it
+- **Mobile-first** -- Max width 480px app shell, responsive flag actions, safe-area-inset support
 
 ---
 
@@ -291,7 +359,7 @@ python app.py
 |----------|---------|---------|
 | `SECRET_KEY` | Flask session secret | 32-byte hex string |
 | `MONGO_URI` | MongoDB connection string | `mongodb+srv://user:pass@cluster.mongodb.net/` |
-| `ANTHROPIC_API_KEY` | Claude API key for AI flagging | `sk-ant-api03-...` |
+| `ANTHROPIC_API_KEY` | Claude API key for AI flagging and check-in summaries | `sk-ant-api03-...` |
 | `SMTP_SERVER` | Email server | `smtp.gmail.com` |
 | `SMTP_PORT` | Email port (465 for SSL, 587 for TLS) | `465` |
 | `SENDER_EMAIL` | Alert sender address | `safespace.ug.alerts@gmail.com` |
@@ -308,7 +376,18 @@ python app.py
 - No signup, no email, no personal data collected
 - Students get anonymous tokens (e.g. `Anon-BraveRiver`, `#UG-7742`)
 - Counsellors never see real identity unless the student chooses to reveal it
-- Journal and mood data are tied only to the anonymous user document
+- Journal, mood, and check-in data are tied only to the anonymous user document
+
+### Two Separate AI Systems
+- **Daily Check-in (intake)** -- Analyses the student's self-reported text + survey for a clinical snapshot. Generates its own flags with `flag_type: "checkin"` so staff can distinguish intake assessments from pattern-detected concerns.
+- **Periodic Flagging (monitoring)** -- Analyses mood trends, journal entries, and activity patterns over time. Catches deterioration that the student may not self-report.
+- Both systems use Claude Haiku 4.5 but with different prompts, different triggers, and different flag types.
+
+### Mandatory Check-in as Counselling Prep
+- The check-in gives counsellors context before any session — they read the clinical summary and the student's own words
+- Free-text captures nuance that multiple-choice can't (tone, specific stressors, language patterns)
+- Survey provides standardised scoring for triage and prioritisation
+- Combined analysis catches inconsistencies (e.g. student says "I'm fine" but scores high on every question)
 
 ### Email as Integration Layer
 - UG staff already use institutional email -- zero new software needed on their side
@@ -339,7 +418,7 @@ python app.py
 1. **Scheduled Flagging** -- Use APScheduler or Celery to run `run_periodic_flagging()` on a cron schedule instead of manual trigger
 2. **Email Queue** -- Use a task queue (Redis + Celery) for reliable email delivery with retries
 3. **WebSocket Chat** -- Replace 5-second polling with Socket.IO for real-time messaging
-4. **Encryption** -- Encrypt journal entries at rest (AES-256)
+4. **Encryption** -- Encrypt journal entries and check-in text at rest (AES-256)
 5. **HTTPS** -- Deploy with SSL (required for any health data)
 6. **Rate Limiting** -- Add Flask-Limiter to prevent abuse
 7. **Staff Auth** -- Integrate with UG's SSO/LDAP instead of static access codes
