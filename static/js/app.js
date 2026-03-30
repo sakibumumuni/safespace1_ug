@@ -325,6 +325,33 @@ function runFlagging() {
     });
 }
 
+// Test email
+function testEmail() {
+    const btn = document.getElementById("test-email-btn");
+    const feedback = document.getElementById("test-email-feedback");
+    btn.textContent = "Sending...";
+    btn.disabled = true;
+
+    api("/api/staff/test-email", "POST").then(data => {
+        feedback.style.display = "block";
+        if (data.ok) {
+            feedback.textContent = `✓ Test email sent to ${data.sent_to} — check inbox & spam`;
+            feedback.style.color = "var(--green)";
+        } else {
+            feedback.textContent = `✗ Failed: ${data.error}`;
+            feedback.style.color = "var(--red)";
+        }
+        btn.textContent = "📧 Send Test Email";
+        btn.disabled = false;
+    }).catch(() => {
+        feedback.style.display = "block";
+        feedback.textContent = "✗ Request failed";
+        feedback.style.color = "var(--red)";
+        btn.textContent = "📧 Send Test Email";
+        btn.disabled = false;
+    });
+}
+
 // Set demo email recipient
 function setDemoEmail() {
     const input = document.getElementById("demo-email");

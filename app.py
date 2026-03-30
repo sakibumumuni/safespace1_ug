@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
+import threading
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -116,7 +117,10 @@ def staff_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get("is_staff"):
-            return jsonify({"error": "Unauthorized"}), 403
+            # API calls get JSON error, page requests redirect to login
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Unauthorized"}), 403
+            return redirect(url_for("staff_login"))
         return f(*args, **kwargs)
     return decorated
 
@@ -770,10 +774,10 @@ def log_mood():
         {"$set": {"last_active": datetime.utcnow()}, "$inc": {"usage_streak": 1}}
     )
     
-    # Run flag check for this user after mood log
-    flag = check_and_flag_user(user_id)
-    
-    return jsonify({"ok": True, "flagged": flag is not None})
+    # Run flag check in background so mood log responds instantly
+    threading.Thread(target=check_and_flag_user, args=(user_id,), daemon=True).start()
+
+    return jsonify({"ok": True, "flagged": False})
 
 
 @app.route("/api/checkin", methods=["POST"])
@@ -929,10 +933,11 @@ def submit_checkin():
         }
         result = flags_col.insert_one(flag)
         flag["_id"] = result.inserted_id
-        send_flag_email(flag)
+        # Send email in background so response is instant
+        threading.Thread(target=send_flag_email, args=(flag,), daemon=True).start()
 
-    # Run AI-powered flag check (uses mood + journal data saved above)
-    check_and_flag_user(user_id)
+    # Run AI-powered flag check in background (uses mood + journal data saved above)
+    threading.Thread(target=check_and_flag_user, args=(user_id,), daemon=True).start()
 
     # Clear the needs_checkin flag
     session.pop("needs_checkin", None)
@@ -969,9 +974,9 @@ def save_journal():
         {"$set": {"last_active": datetime.utcnow()}}
     )
     
-    # Always run Claude-powered flag check after journal save
-    check_and_flag_user(user_id)
-    
+    # Run Claude-powered flag check in background after journal save
+    threading.Thread(target=check_and_flag_user, args=(user_id,), daemon=True).start()
+
     return jsonify({"ok": True})
 
 
@@ -1235,6 +1240,34 @@ def set_demo_email():
         return jsonify({"error": "Invalid email"}), 400
     EMAIL_CONFIG["directorate_email"] = email
     return jsonify({"ok": True, "email": email})
+
+
+@app.route("/api/staff/test-email", methods=["POST"])
+@staff_required
+def test_email():
+    """Send a test email to verify SMTP is working."""
+    cfg = EMAIL_CONFIG
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "[SafeSpace] Test Email — SMTP Working"
+        msg["From"] = cfg["sender_email"]
+        msg["To"] = cfg["directorate_email"]
+        msg.attach(MIMEText("This is a test email from SafeSpace UG. If you see this, email alerts are working.", "plain"))
+        msg.attach(MIMEText("<div style='font-family:sans-serif;padding:20px;'><h2>SafeSpace UG — Test Email</h2><p>If you see this, email alerts are working correctly.</p><p>Recipient: " + cfg["directorate_email"] + "</p></div>", "html"))
+
+        if cfg["smtp_port"] == 465:
+            with smtplib.SMTP_SSL(cfg["smtp_server"], cfg["smtp_port"]) as server:
+                server.login(cfg["sender_email"], cfg["sender_password"])
+                server.sendmail(cfg["sender_email"], cfg["directorate_email"], msg.as_string())
+        else:
+            with smtplib.SMTP(cfg["smtp_server"], cfg["smtp_port"]) as server:
+                server.starttls()
+                server.login(cfg["sender_email"], cfg["sender_password"])
+                server.sendmail(cfg["sender_email"], cfg["directorate_email"], msg.as_string())
+
+        return jsonify({"ok": True, "sent_to": cfg["directorate_email"]})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 # ─── Default peer groups seed 
