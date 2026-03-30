@@ -775,7 +775,7 @@ def log_mood():
     )
     
     # Run flag check in background so mood log responds instantly
-    threading.Thread(target=check_and_flag_user, args=(user_id,), daemon=True).start()
+    threading.Thread(target=check_and_flag_user, args=(user_id,), daemon=False).start()
 
     return jsonify({"ok": True, "flagged": False})
 
@@ -934,10 +934,10 @@ def submit_checkin():
         result = flags_col.insert_one(flag)
         flag["_id"] = result.inserted_id
         # Send email in background so response is instant
-        threading.Thread(target=send_flag_email, args=(flag,), daemon=True).start()
+        threading.Thread(target=send_flag_email, args=(flag,), daemon=False).start()
 
     # Run AI-powered flag check in background (uses mood + journal data saved above)
-    threading.Thread(target=check_and_flag_user, args=(user_id,), daemon=True).start()
+    threading.Thread(target=check_and_flag_user, args=(user_id,), daemon=False).start()
 
     # Clear the needs_checkin flag
     session.pop("needs_checkin", None)
@@ -975,7 +975,7 @@ def save_journal():
     )
     
     # Run Claude-powered flag check in background after journal save
-    threading.Thread(target=check_and_flag_user, args=(user_id,), daemon=True).start()
+    threading.Thread(target=check_and_flag_user, args=(user_id,), daemon=False).start()
 
     return jsonify({"ok": True})
 
