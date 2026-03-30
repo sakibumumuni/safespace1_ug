@@ -286,14 +286,22 @@ async function submitCheckin() {
                     severe: "We hear you, and support is on the way. A counsellor will reach out soon. You are not alone.",
                 };
                 document.getElementById("result-message").textContent = messages[data.risk_level] || messages.minimal;
+
+                // Debug: show email status
+                const debugDiv = document.createElement("div");
+                debugDiv.style.cssText = "font-size:11px; color:var(--text-dim); margin-top:12px; padding:10px; background:var(--surface); border-radius:8px; text-align:left;";
+                debugDiv.innerHTML = `📧 Email: <strong>${data.email_sent}</strong> → ${data.email_to || "unknown"}`;
+                document.getElementById("checkin-result").querySelector("div").appendChild(debugDiv);
             }, 300);
         } else {
             btn.textContent = "Submit & Connect to Counsellor";
             btn.disabled = false;
+            alert("Error: " + JSON.stringify(data));
         }
     } catch (err) {
         btn.textContent = "Submit & Connect to Counsellor";
         btn.disabled = false;
+        alert("Request failed: " + err.message);
     }
 }
 

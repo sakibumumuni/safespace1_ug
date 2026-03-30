@@ -933,10 +933,11 @@ def submit_checkin():
         }
         result = flags_col.insert_one(flag)
         flag["_id"] = result.inserted_id
-        # Send email in background so response is instant
-        threading.Thread(target=send_flag_email, args=(flag,), daemon=False).start()
+        # Send email synchronously so we can catch errors
+        email_sent = send_flag_email(flag)
+        email_error = None if email_sent else "Email send returned False"
 
-    # Run AI-powered flag check in background (uses mood + journal data saved above)
+    # Run AI-powered flag check in background
     threading.Thread(target=check_and_flag_user, args=(user_id,), daemon=False).start()
 
     # Clear the needs_checkin flag
@@ -948,6 +949,8 @@ def submit_checkin():
         "total_score": total_score,
         "max_score": 27,
         "summary": clinical_summary,
+        "email_sent": email_sent if not existing_checkin_flag else "skipped_existing",
+        "email_to": EMAIL_CONFIG["directorate_email"],
     })
 
 
