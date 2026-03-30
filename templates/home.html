@@ -66,7 +66,7 @@
                 {% for val, emoji, label, color in moods %}
                 <button class="mood-btn {% if today_mood and today_mood.value == val %}selected{% endif %}"
                         data-value="{{ val }}"
-                        onclick="selectMood({{ val }})"
+                        onclick="selectMoodWithNote({{ val }})"
                         {% if today_mood and today_mood.value == val %}
                         style="border-color: {{ color }}; background: {{ color }}18;"
                         {% endif %}>
@@ -77,6 +77,16 @@
                     </div>
                 </button>
                 {% endfor %}
+            </div>
+            {# ── Mood Notes ──────────────────────────────────── #}
+            <div id="mood-note-area" style="margin-top: 12px; display: none;">
+                <textarea id="mood-note-input" class="input" rows="2"
+                    placeholder="Add a note about how you're feeling (optional)..."
+                    style="background: var(--surface); font-size: 12px; min-height: 60px; margin-bottom: 8px; resize: vertical;"></textarea>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button class="btn btn-ghost btn-sm" onclick="cancelMoodNote()" style="font-size: 11px;">Skip</button>
+                    <button id="mood-note-save-btn" class="btn btn-green btn-sm" onclick="saveMoodWithNote()" style="font-size: 11px;">Save with Note</button>
+                </div>
             </div>
             <div id="mood-feedback" class="mood-logged" style="display: {% if today_mood %}flex{% else %}none{% endif %};">
                 ✓ Mood logged

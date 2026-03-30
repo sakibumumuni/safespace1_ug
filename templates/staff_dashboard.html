@@ -65,11 +65,12 @@
             ℹ️ How Email Alerts Work
         </div>
         <div style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
-            The system automatically checks each user on periodic intervals based on severity tier:
-            <strong>Urgent</strong> (every 24h), <strong>Concern</strong> (every 48h), <strong>Watch</strong> (every 72h).
-            When flagged, a structured email is sent to the configured recipient with the anonymous
-            user token, mood trend, and journal excerpts. The student's identity is never included.
-            You can also manually trigger a check using the button above.
+            <strong>Two separate alert systems</strong> send emails independently:<br><br>
+            <strong style="color: var(--purple);">PHQ-9 Check-in flags</strong> — Generated when a student completes the
+            standardized PHQ-9 questionnaire before speaking to a counsellor. Includes their self-reported state and severity score (/27).<br><br>
+            <strong style="color: var(--accent);">AI Periodic flags</strong> — Claude AI (Haiku 4.5) analyses mood trends,
+            journal entries, and activity patterns on intervals: <strong>Urgent</strong> (24h),
+            <strong>Concern</strong> (48h), <strong>Watch</strong> (72h). You can also manually trigger a check above.
         </div>
     </div>
 
@@ -84,7 +85,9 @@
             </div>
             <div style="display: flex; gap: 6px; align-items: center;">
                 {% if flag.flag_type == 'checkin' %}
-                <span class="badge" style="color: var(--purple); background: var(--purple-soft);">check-in</span>
+                <span class="badge" style="color: var(--purple); background: var(--purple-soft);">PHQ-9</span>
+                {% elif flag.flag_type == 'periodic' %}
+                <span class="badge" style="color: var(--accent); background: rgba(108,155,242,0.15);">AI periodic</span>
                 {% endif %}
                 <span class="badge badge-{{ flag.severity }}">{{ flag.severity }}</span>
                 <span class="badge badge-{{ 'reviewed' if flag.status in ['reviewed', 'action_taken', 'resolved'] else 'pending' }}">
@@ -112,11 +115,11 @@
 
         {% if flag.assessment_summary %}
         <div class="flag-assessment">
-            <div class="fa-header">📋 Therapy Assessment</div>
+            <div class="fa-header">📋 PHQ-9 Assessment</div>
             <div class="fa-score">
-                <span>Score: {{ flag.assessment_score }}/15</span>
-                <span class="badge badge-{{ 'urgent' if flag.assessment_risk == 'high' else 'concern' if flag.assessment_risk == 'elevated' else 'watch' if flag.assessment_risk == 'moderate' else 'reviewed' }}">
-                    {{ flag.assessment_risk }}
+                <span>Score: {{ flag.assessment_score }}/27</span>
+                <span class="badge badge-{{ 'urgent' if flag.assessment_risk in ['severe', 'moderately_severe', 'high'] else 'concern' if flag.assessment_risk in ['moderate', 'elevated'] else 'watch' if flag.assessment_risk == 'mild' else 'reviewed' }}">
+                    {{ flag.assessment_risk | replace('_', ' ') }}
                 </span>
             </div>
             <div class="fa-summary">{{ flag.assessment_summary }}</div>

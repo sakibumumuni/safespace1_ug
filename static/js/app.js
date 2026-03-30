@@ -15,7 +15,9 @@ async function api(url, method = "GET", body = null) {
 }
 
 // ─── Mood Logging ────────────────────────────────────────────────
-function selectMood(value) {
+let _pendingMoodValue = null;
+
+function selectMoodWithNote(value) {
     const btns = document.querySelectorAll(".mood-btn");
     const colors = { 1: "#EF6B6B", 2: "#F0B95A", 3: "#8B90A5", 4: "#6C9BF2", 5: "#5ECE8A" };
 
@@ -33,20 +35,60 @@ function selectMood(value) {
         selected.style.background = colors[value] + "18";
         selected.querySelector(".mood-label").style.color = colors[value];
 
-        // Bounce animation on the emoji
         const emoji = selected.querySelector(".mood-emoji");
         emoji.style.transform = "scale(1.4)";
         setTimeout(() => { emoji.style.transform = ""; }, 200);
     }
 
-    api("/api/mood", "POST", { value: parseInt(value) }).then(data => {
+    // Show note area
+    _pendingMoodValue = parseInt(value);
+    const noteArea = document.getElementById("mood-note-area");
+    if (noteArea) {
+        noteArea.style.display = "block";
+        noteArea.style.animation = "fadeInUp 0.3s ease both";
+    }
+}
+
+function saveMoodWithNote() {
+    if (!_pendingMoodValue) return;
+    const noteInput = document.getElementById("mood-note-input");
+    const note = noteInput ? noteInput.value.trim() : "";
+
+    api("/api/mood", "POST", { value: _pendingMoodValue, note: note }).then(data => {
+        const feedback = document.getElementById("mood-feedback");
+        if (feedback) {
+            feedback.style.display = "flex";
+            feedback.textContent = note ? "✓ Mood & note logged" : "✓ Mood logged";
+        }
+        const noteArea = document.getElementById("mood-note-area");
+        if (noteArea) noteArea.style.display = "none";
+        if (noteInput) noteInput.value = "";
+        _pendingMoodValue = null;
+        setTimeout(() => { if (window.loadMoodChart) window.loadMoodChart(); }, 500);
+    });
+}
+
+function cancelMoodNote() {
+    // Save mood without note
+    if (!_pendingMoodValue) return;
+    api("/api/mood", "POST", { value: _pendingMoodValue, note: "" }).then(data => {
         const feedback = document.getElementById("mood-feedback");
         if (feedback) {
             feedback.style.display = "flex";
             feedback.textContent = "✓ Mood logged";
         }
+        const noteArea = document.getElementById("mood-note-area");
+        if (noteArea) noteArea.style.display = "none";
+        const noteInput = document.getElementById("mood-note-input");
+        if (noteInput) noteInput.value = "";
+        _pendingMoodValue = null;
         setTimeout(() => { if (window.loadMoodChart) window.loadMoodChart(); }, 500);
     });
+}
+
+// Legacy support
+function selectMood(value) {
+    selectMoodWithNote(value);
 }
 
 // ─── Journal ─────────────────────────────────────────────────────

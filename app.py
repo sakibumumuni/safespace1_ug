@@ -146,9 +146,13 @@ def send_flag_email(flag_data):
     severity = flag_data.get("severity", "watch")
     color = severity_colors.get(severity, "#6C9BF2")
     token = flag_data.get("user_token", "Unknown")
-    
-    # Build email
-    subject = f"[SafeSpace {severity.upper()}] Anonymous user {token} flagged for review"
+    flag_type = flag_data.get("flag_type", "periodic")
+
+    # Build email — distinguish check-in flags from periodic AI flags
+    if flag_type == "checkin":
+        subject = f"[SafeSpace PHQ-9 {severity.upper()}] Anonymous user {token} — Pre-session check-in"
+    else:
+        subject = f"[SafeSpace AI {severity.upper()}] Anonymous user {token} — Periodic risk assessment"
     
     # Plain text version
     text_body = f"""
@@ -167,7 +171,7 @@ Mood Trend (last 7 entries):
 
 {f"Journal Excerpt:{chr(10)}{flag_data.get('journal_excerpt', '')}" if flag_data.get('journal_excerpt') else ""}
 
-{f"Therapy Assessment (Score: {flag_data.get('assessment_score')}/15 — {flag_data.get('assessment_risk', '').upper()}):{chr(10)}{flag_data.get('assessment_summary', '')}" if flag_data.get('assessment_summary') else ""}
+{f"PHQ-9 Assessment (Score: {flag_data.get('assessment_score')}/27 — {flag_data.get('assessment_risk', '').replace('_', ' ').upper()}):{chr(10)}{flag_data.get('assessment_summary', '')}" if flag_data.get('assessment_summary') else ""}
 
 Review this case at: {flag_data.get('dashboard_url', f"{APP_URL}/staff/dashboard")}
 
@@ -185,7 +189,7 @@ University of Ghana Counselling Directorate
     <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; background: #0F1117; color: #E8EAF0; border-radius: 12px; overflow: hidden;">
         <div style="background: {color}; padding: 16px 24px;">
             <h2 style="margin: 0; color: #fff; font-size: 16px;">
-                ⚠ SafeSpace Alert — {severity.upper()}
+                {"📋" if flag_type == "checkin" else "🤖"} SafeSpace {"PHQ-9 Check-in" if flag_type == "checkin" else "Periodic AI"} Alert — {severity.upper()}
             </h2>
         </div>
         <div style="padding: 24px;">
@@ -210,13 +214,21 @@ University of Ghana Counselling Directorate
             
             {"<div style='margin-bottom: 16px;'><div style=font-size:12px;color:#8B90A5;margin-bottom:4px;>JOURNAL EXCERPT</div><div style=font-size:13px;color:#F0B95A;font-style:italic;background:#1E2230;padding:12px;border-radius:8px;border-left:3px solid " + color + ";>" + flag_data.get('journal_excerpt', '') + "</div></div>" if flag_data.get('journal_excerpt') else ""}
 
-            {"<div style='margin-bottom:16px;'><div style='font-size:12px;color:#A78BFA;margin-bottom:4px;'>THERAPY ASSESSMENT (Score: " + str(flag_data.get('assessment_score', '')) + "/15 — " + str(flag_data.get('assessment_risk', '')).upper() + ")</div><div style='font-size:13px;color:#E8EAF0;background:#1E2230;padding:12px;border-radius:8px;border-left:3px solid #A78BFA;line-height:1.5;'>" + flag_data.get('assessment_summary', '') + "</div></div>" if flag_data.get('assessment_summary') else ""}
+            {"<div style='margin-bottom:16px;'><div style='font-size:12px;color:#A78BFA;margin-bottom:4px;'>PHQ-9 ASSESSMENT (Score: " + str(flag_data.get('assessment_score', '')) + "/27 — " + str(flag_data.get('assessment_risk', '')).replace('_', ' ').upper() + ")</div><div style='font-size:13px;color:#E8EAF0;background:#1E2230;padding:12px;border-radius:8px;border-left:3px solid #A78BFA;line-height:1.5;'>" + flag_data.get('assessment_summary', '') + "</div></div>" if flag_data.get('assessment_summary') else ""}
 
             <div style="margin-top: 24px; text-align: center;">
-                <a href="{flag_data.get('dashboard_url', '#')}" 
+                <a href="{flag_data.get('dashboard_url', APP_URL + '/staff/dashboard')}"
+                   target="_blank" rel="noopener noreferrer"
                    style="background: {color}; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;">
                     Review in Dashboard →
                 </a>
+                <div style="margin-top: 8px; font-size: 11px; color: #5A5F75;">
+                    <a href="{flag_data.get('dashboard_url', APP_URL + '/staff/dashboard')}"
+                       target="_blank" rel="noopener noreferrer"
+                       style="color: #8B90A5; word-break: break-all;">
+                        {flag_data.get('dashboard_url', APP_URL + '/staff/dashboard')}
+                    </a>
+                </div>
             </div>
             
             <div style="margin-top: 24px; font-size: 11px; color: #5A5F75; text-align: center;">
@@ -379,6 +391,7 @@ If the data shows no concerning patterns, return:
     flag = {
         "user_id": str(user_id),
         "user_token": token,
+        "flag_type": "periodic",
         "severity": severity,
         "reasons": reasons,
         "reason": "; ".join(reasons),
@@ -422,12 +435,12 @@ def run_periodic_flagging():
 
 
 
-# ─── Therapy Assessment Questions ─────────────────────────────
-# Brief screening inspired by PHQ-2/GAD-2 adapted for university students
-ASSESSMENT_QUESTIONS = [
+# Standardized Patient Health Questionnaire (PHQ-9)
+# 9 items, each scored 0-3, total 0-27
+PHQ9_QUESTIONS = [
     {
-        "id": "q1",
-        "text": "Over the past two weeks, how often have you felt down, depressed, or hopeless?",
+        "id": "phq1",
+        "text": "Little interest or pleasure in doing things?",
         "options": [
             {"value": 0, "label": "Not at all"},
             {"value": 1, "label": "Several days"},
@@ -436,8 +449,8 @@ ASSESSMENT_QUESTIONS = [
         ],
     },
     {
-        "id": "q2",
-        "text": "Over the past two weeks, how often have you felt nervous, anxious, or on edge?",
+        "id": "phq2",
+        "text": "Feeling down, depressed, or hopeless?",
         "options": [
             {"value": 0, "label": "Not at all"},
             {"value": 1, "label": "Several days"},
@@ -446,8 +459,8 @@ ASSESSMENT_QUESTIONS = [
         ],
     },
     {
-        "id": "q3",
-        "text": "How often have you had trouble sleeping or slept too much?",
+        "id": "phq3",
+        "text": "Trouble falling or staying asleep, or sleeping too much?",
         "options": [
             {"value": 0, "label": "Not at all"},
             {"value": 1, "label": "Several days"},
@@ -456,29 +469,69 @@ ASSESSMENT_QUESTIONS = [
         ],
     },
     {
-        "id": "q4",
-        "text": "How would you rate your ability to cope with daily academic and social demands?",
+        "id": "phq4",
+        "text": "Feeling tired or having little energy?",
         "options": [
-            {"value": 0, "label": "Very well"},
-            {"value": 1, "label": "Fairly well"},
-            {"value": 2, "label": "Struggling somewhat"},
-            {"value": 3, "label": "Not coping at all"},
+            {"value": 0, "label": "Not at all"},
+            {"value": 1, "label": "Several days"},
+            {"value": 2, "label": "More than half the days"},
+            {"value": 3, "label": "Nearly every day"},
         ],
     },
     {
-        "id": "q5",
-        "text": "Do you feel you have someone to talk to when things get tough?",
+        "id": "phq5",
+        "text": "Poor appetite or overeating?",
         "options": [
-            {"value": 0, "label": "Yes, always"},
-            {"value": 1, "label": "Sometimes"},
-            {"value": 2, "label": "Rarely"},
-            {"value": 3, "label": "No, never"},
+            {"value": 0, "label": "Not at all"},
+            {"value": 1, "label": "Several days"},
+            {"value": 2, "label": "More than half the days"},
+            {"value": 3, "label": "Nearly every day"},
+        ],
+    },
+    {
+        "id": "phq6",
+        "text": "Feeling bad about yourself — or that you are a failure or have let yourself or your family down?",
+        "options": [
+            {"value": 0, "label": "Not at all"},
+            {"value": 1, "label": "Several days"},
+            {"value": 2, "label": "More than half the days"},
+            {"value": 3, "label": "Nearly every day"},
+        ],
+    },
+    {
+        "id": "phq7",
+        "text": "Trouble concentrating on things, such as reading or watching television?",
+        "options": [
+            {"value": 0, "label": "Not at all"},
+            {"value": 1, "label": "Several days"},
+            {"value": 2, "label": "More than half the days"},
+            {"value": 3, "label": "Nearly every day"},
+        ],
+    },
+    {
+        "id": "phq8",
+        "text": "Moving or speaking so slowly that other people could have noticed? Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual?",
+        "options": [
+            {"value": 0, "label": "Not at all"},
+            {"value": 1, "label": "Several days"},
+            {"value": 2, "label": "More than half the days"},
+            {"value": 3, "label": "Nearly every day"},
+        ],
+    },
+    {
+        "id": "phq9",
+        "text": "Thoughts that you would be better off dead, or of hurting yourself in some way?",
+        "options": [
+            {"value": 0, "label": "Not at all"},
+            {"value": 1, "label": "Several days"},
+            {"value": 2, "label": "More than half the days"},
+            {"value": 3, "label": "Nearly every day"},
         ],
     },
 ]
 
 
-# ROUTES — Pages
+# Page Routes
 
 @app.route("/")
 def landing():
@@ -488,11 +541,11 @@ def landing():
         return redirect(url_for("staff_dashboard"))
     return render_template("landing.html")
 
+#    Mandatory daily check-in: free-text mood + survey. Will remove checkin into the beginning of a chat with a counsellor
 
-@app.route("/checkin")
+"""@app.route("/checkin")
 @login_required
 def checkin_page():
-    """Mandatory daily check-in: free-text mood + survey."""
     user = get_current_user()
     # If already checked in today, skip to home
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -503,14 +556,14 @@ def checkin_page():
     if today_checkin:
         session.pop("needs_checkin", None)
         return redirect(url_for("home"))
-    return render_template("checkin.html", user=user, questions=ASSESSMENT_QUESTIONS)
+    return render_template("checkin.html", user=user, questions=ASSESSMENT_QUESTIONS)"""
 
 
 @app.route("/home")
 @login_required
 def home():
     user = get_current_user()
-    # Redirect to check-in if not done today
+    """Redirect to check-in if not done today, needs work because of checkin relocation
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     today_checkin = assessments_col.find_one({
         "user_id": str(user["_id"]),
@@ -523,14 +576,21 @@ def home():
     today_mood = moods_col.find_one({
         "user_id": str(user["_id"]),
         "created_at": {"$gte": today_start}
+    })"""
+    # Get today's mood
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_mood = moods_col.find_one({
+        "user_id": str(user["_id"]),
+        "created_at": {"$gte": today_start}
     })
+
     # Get recent moods for chart
     recent_moods = list(moods_col.find(
         {"user_id": str(user["_id"])},
         sort=[("created_at", -1)]
     ).limit(7))
     recent_moods.reverse()
-    
+
     # Check for counsellor messages / tokens
     notifications = list(counsel_col.find({
         "user_id": str(user["_id"]),
@@ -596,15 +656,29 @@ def crisis_page():
 @login_required
 def counsellor_chat():
     user = get_current_user()
+    user_id = str(user["_id"])
+
+    # Check if PHQ-9 was completed today
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_checkin = assessments_col.find_one({
+        "user_id": user_id,
+        "created_at": {"$gte": today_start}
+    })
+    needs_checkin = today_checkin is None
+
     msgs = list(counsel_col.find(
-        {"user_id": str(user["_id"])},
+        {"user_id": user_id},
         sort=[("created_at", 1)]
     ).limit(100))
-    return render_template("counsellor_chat.html", user=user, messages=msgs)
+    return render_template("counsellor_chat.html",
+        user=user,
+        messages=msgs,
+        needs_checkin=needs_checkin,
+        questions=PHQ9_QUESTIONS,
+    )
 
 
-# Staff Route
-
+# Staff Routes
 @app.route("/staff/login", methods=["GET", "POST"])
 def staff_login():
     if request.method == "POST":
@@ -652,7 +726,6 @@ def staff_chat(user_id):
 
 
 # API ROUTES
-
 @app.route("/api/auth/register", methods=["POST"])
 def register():
     """Create anonymous account — no personal info needed."""
@@ -726,12 +799,12 @@ def submit_checkin():
 
     token = user.get("token", generate_token())
 
-    # Calculate raw score (0-15)
+    # Calculate raw score (PHQ-9: 0-27)
     total_score = sum(int(v) for v in answers.values())
 
-    # Build readable answers for Claude
+    # Build readable answers for clinical summary
     answer_lines = []
-    for q in ASSESSMENT_QUESTIONS:
+    for q in PHQ9_QUESTIONS:
         val = answers.get(q["id"])
         if val is not None:
             val = int(val)
@@ -740,24 +813,31 @@ def submit_checkin():
 
     answers_text = "\n\n".join(answer_lines)
 
-    # ── Generate summary locally (no API call — instant) ──────
-    risk = "low" if total_score <= 3 else "moderate" if total_score <= 7 else "elevated" if total_score <= 11 else "high"
-    risk_labels = {"low": "Low concern", "moderate": "Moderate concern", "elevated": "Elevated concern", "high": "High concern"}
+    # ── PHQ-9 severity thresholds ──────
+    # 0-4: Minimal, 5-9: Mild, 10-14: Moderate, 15-19: Moderately severe, 20-27: Severe
+    if total_score <= 4:
+        risk_level = "minimal"
+    elif total_score <= 9:
+        risk_level = "mild"
+    elif total_score <= 14:
+        risk_level = "moderate"
+    elif total_score <= 19:
+        risk_level = "moderately_severe"
+    else:
+        risk_level = "severe"
+
+    risk_labels = {
+        "minimal": "Minimal depression",
+        "mild": "Mild depression",
+        "moderate": "Moderate depression",
+        "moderately_severe": "Moderately severe depression",
+        "severe": "Severe depression",
+    }
     clinical_summary = (
-        f"{risk_labels[risk]} — score {total_score}/15. "
+        f"PHQ-9: {risk_labels[risk_level]} — score {total_score}/27. "
         f"Student wrote: \"{mood_text[:120]}{'…' if len(mood_text) > 120 else ''}\". "
         f"Review survey responses and mood text before session."
     )
-
-    # Determine risk level
-    if total_score <= 3:
-        risk_level = "low"
-    elif total_score <= 7:
-        risk_level = "moderate"
-    elif total_score <= 11:
-        risk_level = "elevated"
-    else:
-        risk_level = "high"
 
     # Save the check-in
     checkin_doc = {
@@ -772,17 +852,17 @@ def submit_checkin():
     }
     assessments_col.insert_one(checkin_doc)
 
-    # Derive mood value (1-5) from score (0-15, higher = worse)
-    if total_score <= 3:
-        mood_value = 5
-    elif total_score <= 7:
-        mood_value = 4
-    elif total_score <= 10:
-        mood_value = 3
-    elif total_score <= 13:
-        mood_value = 2
+    # Derive mood value (1-5) from PHQ-9 score (0-27, higher = worse)
+    if total_score <= 4:
+        mood_value = 5   # minimal
+    elif total_score <= 9:
+        mood_value = 4   # mild
+    elif total_score <= 14:
+        mood_value = 3   # moderate
+    elif total_score <= 19:
+        mood_value = 2   # moderately severe
     else:
-        mood_value = 1
+        mood_value = 1   # severe
 
     # Save mood to moods_col so AI flagging engine has data
     moods_col.insert_one({
@@ -817,14 +897,24 @@ def submit_checkin():
         "created_at": {"$gte": today_start},
     })
     if not existing_checkin_flag:
-        severity = "urgent" if risk_level == "high" else "concern" if risk_level == "elevated" else "watch"
+        # PHQ-9 severity → flag severity
+        if risk_level in ("severe", "moderately_severe"):
+            severity = "urgent"
+        elif risk_level == "moderate":
+            severity = "concern"
+        else:
+            severity = "watch"
+        # PHQ-9 item 9 (self-harm thoughts) always escalates to urgent
+        phq9_val = int(answers.get("phq9", 0))
+        if phq9_val >= 1:
+            severity = "urgent"
         flag = {
             "user_id": user_id,
             "user_token": token,
             "flag_type": "checkin",
             "severity": severity,
-            "reasons": [f"Daily check-in: {risk_level} risk ({total_score}/15)"],
-            "reason": f"Daily check-in: {risk_level} risk ({total_score}/15)",
+            "reasons": [f"PHQ-9 check-in: {risk_labels[risk_level]} ({total_score}/27)"],
+            "reason": f"PHQ-9 check-in: {risk_labels[risk_level]} ({total_score}/27)",
             "mood_trend": [],
             "journal_excerpt": mood_text[:200],
             "assessment_score": total_score,
@@ -851,6 +941,7 @@ def submit_checkin():
         "ok": True,
         "risk_level": risk_level,
         "total_score": total_score,
+        "max_score": 27,
         "summary": clinical_summary,
     })
 

@@ -18,7 +18,101 @@
         </div>
     </header>
 
-    <main style="flex: 1; display: flex; flex-direction: column; padding: 14px; overflow: hidden;">
+    {# ── PHQ-9 Check-in Gate ─────────────────────────────── #}
+    {% if needs_checkin %}
+    <main class="app-content" id="phq9-gate" style="overflow-y: auto; padding: 14px;">
+        {# Step Indicator #}
+        <div id="step-indicator" style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px; animation: fadeInUp 0.4s ease both;">
+            <div id="step-dot-1" class="step-dot active"></div>
+            <div class="step-line"></div>
+            <div id="step-dot-2" class="step-dot"></div>
+            <div style="flex:1;"></div>
+            <div id="step-label" style="font-size: 11px; color: var(--text-dim); font-weight: 600;">Step 1 of 2</div>
+        </div>
+
+        {# Step 1: How are you feeling? (text) #}
+        <div id="checkin-step-1" style="animation: fadeInUp 0.4s ease both;">
+            <div style="font-size: 22px; font-weight: 700; margin-bottom: 4px;">
+                Before we connect you
+            </div>
+            <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6;">
+                Help the counsellor understand how you're doing. This brief check-in (PHQ-9) gives them an overview of your state before your conversation.
+            </div>
+
+            <div class="card" style="border-color: rgba(108,155,242,0.15); animation-delay: 0.05s;">
+                <textarea id="mood-text-input" class="input" rows="5"
+                    placeholder="E.g. I've been feeling really overwhelmed with exams this week... / Today dey hard for me... / Me ho mfa me so..."
+                    style="background: var(--surface); margin-bottom: 10px; min-height: 120px;"></textarea>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div id="text-char-count" style="font-size: 11px; color: var(--text-dim);"></div>
+                    <div style="font-size: 10px; color: var(--text-dim);">English, Pidgin, or Twi</div>
+                </div>
+            </div>
+
+            <button id="next-step-btn" class="btn btn-primary btn-full" style="margin-top: 8px; padding: 13px;" onclick="goToStep2()" disabled>
+                Continue to PHQ-9 Questionnaire
+            </button>
+        </div>
+
+        {# Step 2: PHQ-9 Questions #}
+        <div id="checkin-step-2" style="display: none;">
+            <div style="font-size: 20px; font-weight: 700; margin-bottom: 4px;">
+                PHQ-9 Questionnaire
+            </div>
+            <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.6;">
+                Over the <strong>last 2 weeks</strong>, how often have you been bothered by any of the following problems?
+            </div>
+            <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 20px;">
+                Answer all 9 questions honestly. There are no right or wrong answers.
+            </div>
+
+            <div id="checkin-questions">
+                {% for q in questions %}
+                <div class="card checkin-q-card" style="animation: fadeInUp 0.4s ease both; animation-delay: {{ loop.index * 0.04 }}s;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 10px; display: flex; gap: 8px; align-items: flex-start;">
+                        <span style="color: var(--accent); font-family: var(--mono); font-size: 12px; min-width: 20px;">{{ loop.index }}.</span>
+                        {{ q.text }}
+                    </div>
+                    <div class="assessment-options" data-qid="{{ q.id }}">
+                        {% for o in q.options %}
+                        <button class="assessment-opt" data-qid="{{ q.id }}" data-val="{{ o.value }}"
+                                onclick="pickCheckinOption(this, '{{ q.id }}', {{ o.value }})">
+                            {{ o.label }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button id="checkin-submit-btn" class="btn btn-primary btn-full" style="margin-top: 14px; padding: 13px;" onclick="submitCheckin()" disabled>
+                Submit & Connect to Counsellor
+            </button>
+            <button class="btn btn-ghost btn-full btn-sm" style="margin-top: 8px;" onclick="goToStep1()">
+                ← Back to edit
+            </button>
+        </div>
+
+        {# Result Screen #}
+        <div id="checkin-result" style="display: none;">
+            <div style="text-align: center; padding: 20px 0; animation: fadeInUp 0.5s ease both;">
+                <div style="font-size: 48px; margin-bottom: 16px;" id="result-emoji">🛡️</div>
+                <div style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">Thank you for checking in</div>
+                <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6; max-width: 320px; margin-left: auto; margin-right: auto;">
+                    Your PHQ-9 responses have been shared with the counselling team. Everything stays anonymous.
+                </div>
+                <div id="result-risk-badge" style="margin-bottom: 20px;"></div>
+                <div id="result-message" style="font-size: 13px; color: var(--text-muted); line-height: 1.7; text-align: left; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 20px;"></div>
+                <button onclick="showChat()" class="btn btn-green btn-full" style="padding: 13px; font-size: 14px;">
+                    Continue to Counsellor Chat
+                </button>
+            </div>
+        </div>
+    </main>
+    {% endif %}
+
+    {# ── Counsellor Chat Area ────────────────────────────── #}
+    <main id="chat-area" style="flex: 1; display: flex; flex-direction: column; padding: 14px; overflow: hidden; {% if needs_checkin %}display: none;{% endif %}">
         <div id="counsel-messages" class="chat-container" style="flex: 1; overflow-y: auto;">
             {% for msg in messages %}
             <div class="chat-msg {% if msg.get('from') == 'user' %}mine{% else %}counsellor{% endif %}">
@@ -50,4 +144,164 @@
         </div>
     </main>
 </div>
+
+<script>
+const _totalQuestions = {{ questions|length if questions else 0 }};
+let _checkinAnswers = {};
+let _moodText = "";
+
+// Character counter
+const mti = document.getElementById("mood-text-input");
+const tcc = document.getElementById("text-char-count");
+const nextBtn = document.getElementById("next-step-btn");
+
+if (mti) {
+    mti.addEventListener("input", () => {
+        const len = mti.value.trim().length;
+        tcc.textContent = len > 0 ? len + " characters" : "";
+        nextBtn.disabled = len < 10;
+    });
+}
+
+function goToStep2() {
+    _moodText = mti.value.trim();
+    if (_moodText.length < 10) return;
+
+    const s1 = document.getElementById("checkin-step-1");
+    s1.style.transition = "opacity 0.3s, transform 0.3s";
+    s1.style.opacity = "0";
+    s1.style.transform = "translateX(-20px)";
+
+    setTimeout(() => {
+        s1.style.display = "none";
+        const s2 = document.getElementById("checkin-step-2");
+        s2.style.display = "block";
+        s2.style.opacity = "0";
+        s2.style.transform = "translateX(20px)";
+        requestAnimationFrame(() => {
+            s2.style.transition = "opacity 0.3s, transform 0.3s";
+            s2.style.opacity = "1";
+            s2.style.transform = "translateX(0)";
+        });
+
+        document.getElementById("step-dot-1").classList.remove("active");
+        document.getElementById("step-dot-1").classList.add("done");
+        document.getElementById("step-dot-2").classList.add("active");
+        document.getElementById("step-label").textContent = "Step 2 of 2";
+    }, 300);
+}
+
+function goToStep1() {
+    const s2 = document.getElementById("checkin-step-2");
+    s2.style.transition = "opacity 0.3s, transform 0.3s";
+    s2.style.opacity = "0";
+    s2.style.transform = "translateX(20px)";
+
+    setTimeout(() => {
+        s2.style.display = "none";
+        const s1 = document.getElementById("checkin-step-1");
+        s1.style.display = "block";
+        s1.style.opacity = "0";
+        s1.style.transform = "translateX(-20px)";
+        requestAnimationFrame(() => {
+            s1.style.transition = "opacity 0.3s, transform 0.3s";
+            s1.style.opacity = "1";
+            s1.style.transform = "translateX(0)";
+        });
+
+        document.getElementById("step-dot-2").classList.remove("active");
+        document.getElementById("step-dot-1").classList.remove("done");
+        document.getElementById("step-dot-1").classList.add("active");
+        document.getElementById("step-label").textContent = "Step 1 of 2";
+    }, 300);
+}
+
+function pickCheckinOption(btn, qid, val) {
+    btn.parentElement.querySelectorAll(".assessment-opt").forEach(b => {
+        b.classList.remove("ao-selected");
+    });
+    btn.classList.add("ao-selected");
+    _checkinAnswers[qid] = val;
+
+    document.getElementById("checkin-submit-btn").disabled =
+        Object.keys(_checkinAnswers).length < _totalQuestions;
+}
+
+async function submitCheckin() {
+    const btn = document.getElementById("checkin-submit-btn");
+    btn.textContent = "Analysing your responses...";
+    btn.disabled = true;
+
+    try {
+        const res = await fetch("/api/checkin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                mood_text: _moodText,
+                answers: _checkinAnswers,
+            }),
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+            const s2 = document.getElementById("checkin-step-2");
+            s2.style.transition = "opacity 0.3s";
+            s2.style.opacity = "0";
+            document.getElementById("step-indicator").style.display = "none";
+
+            setTimeout(() => {
+                s2.style.display = "none";
+
+                const resultDiv = document.getElementById("checkin-result");
+                resultDiv.style.display = "block";
+
+                const riskColors = {
+                    minimal: "var(--green)", mild: "var(--accent)",
+                    moderate: "var(--amber)", moderately_severe: "var(--red)",
+                    severe: "var(--red)"
+                };
+                const riskEmoji = {
+                    minimal: "😊", mild: "🙂",
+                    moderate: "😔", moderately_severe: "😟",
+                    severe: "🫂"
+                };
+                const riskDisplay = {
+                    minimal: "MINIMAL", mild: "MILD",
+                    moderate: "MODERATE", moderately_severe: "MODERATELY SEVERE",
+                    severe: "SEVERE"
+                };
+                const rc = riskColors[data.risk_level] || "var(--text)";
+                const maxScore = data.max_score || 27;
+
+                document.getElementById("result-emoji").textContent = riskEmoji[data.risk_level] || "🛡️";
+
+                document.getElementById("result-risk-badge").innerHTML =
+                    `<span style="display:inline-block; padding:5px 16px; border-radius:20px; font-size:12px; font-weight:600; color:${rc}; background:${rc}18;">${riskDisplay[data.risk_level] || data.risk_level.toUpperCase()} — Score ${data.total_score}/${maxScore}</span>`;
+
+                const messages = {
+                    minimal: "Things seem okay right now. The counsellor will have your check-in for context.",
+                    mild: "Thank you for being honest. The counsellor will review your responses before chatting.",
+                    moderate: "It sounds like you're going through a tough time. The counsellor will be prepared to support you.",
+                    moderately_severe: "We hear you. The counselling team has been alerted and will prioritise your case.",
+                    severe: "We hear you, and support is on the way. A counsellor will reach out soon. You are not alone.",
+                };
+                document.getElementById("result-message").textContent = messages[data.risk_level] || messages.minimal;
+            }, 300);
+        } else {
+            btn.textContent = "Submit & Connect to Counsellor";
+            btn.disabled = false;
+        }
+    } catch (err) {
+        btn.textContent = "Submit & Connect to Counsellor";
+        btn.disabled = false;
+    }
+}
+
+function showChat() {
+    const gate = document.getElementById("phq9-gate");
+    if (gate) gate.style.display = "none";
+    const chat = document.getElementById("chat-area");
+    if (chat) chat.style.display = "flex";
+}
+</script>
 {% endblock %}
