@@ -48,7 +48,7 @@ tokens_col      = db["session_tokens"] # one-time meeting codes
 assessments_col = db["assessments"]  # therapy assessments after mood check
 
 # Base URL for links in emails (set APP_URL in .env when deployed)
-APP_URL = os.environ.get("APP_URL", f"http://localhost:{os.environ.get('PORT', 5000)}").strip().rstrip("/")
+APP_URL = os.environ.get("APP_URL", f"https://safespace1-ug.onrender.com").strip().rstrip("/")
 
 # Email Config (UG Counselling Directorate)
 EMAIL_CONFIG = {
