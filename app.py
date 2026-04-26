@@ -385,13 +385,13 @@ If the data shows no concerning patterns, return:
     if recent_flag:
         return None
 
-    # ── Pull latest assessment if available ──────────────
+    # Pull latest assessment if available 
     latest_assessment = assessments_col.find_one(
         {"user_id": str(user_id)},
         sort=[("created_at", -1)],
     )
 
-    # ── Create flag document ───────────────────────────────
+    # Create flag document
     flag = {
         "user_id": str(user_id),
         "user_token": token,
@@ -560,7 +560,7 @@ def checkin_page():
     if today_checkin:
         session.pop("needs_checkin", None)
         return redirect(url_for("home"))
-    return render_template("checkin.html", user=user, questions=ASSESSMENT_QUESTIONS)
+    return render_template("checkin.html", user=user, questions=PHQ9_QUESTIONS)
 
 
 @app.route("/home")
