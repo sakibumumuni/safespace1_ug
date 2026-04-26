@@ -547,7 +547,7 @@ def landing():
 
 #    Mandatory daily check-in: free-text mood + survey. Will remove checkin into the beginning of a chat with a counsellor
 
-"""@app.route("/checkin")
+@app.route("/checkin")
 @login_required
 def checkin_page():
     user = get_current_user()
@@ -560,7 +560,7 @@ def checkin_page():
     if today_checkin:
         session.pop("needs_checkin", None)
         return redirect(url_for("home"))
-    return render_template("checkin.html", user=user, questions=ASSESSMENT_QUESTIONS)"""
+    return render_template("checkin.html", user=user, questions=ASSESSMENT_QUESTIONS)
 
 
 @app.route("/home")
