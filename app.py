@@ -3,7 +3,7 @@ SafeSpace UG — MVP Backend
 University of Ghana Mental Health Support Platform
 Stack: Flask + MongoDB + SMTP Email Alerts
 """
-
+from .env import APP_URL
 import os
 import re
 import secrets
@@ -49,13 +49,13 @@ tokens_col      = db["session_tokens"] # one-time meeting codes
 assessments_col = db["assessments"]  # therapy assessments after mood check
 
 # Base URL for links in emails (set APP_URL in .env when deployed)
-APP_URL = os.environ.get("APP_URL", f"http://localhost:{os.environ.get('PORT', 5000)}").strip().rstrip("/")
+APP_URL = os.environ.get(APP_URL).strip().rstrip("/")
 
 # Email Config (UG Counselling Directorate)
 EMAIL_CONFIG = {
     "smtp_server": os.environ.get("SMTP_SERVER", "smtp.gmail.com"),
     "smtp_port": int(os.environ.get("SMTP_PORT", 587)),
-    "sender_email": os.environ.get("SENDER_EMAIL", "safespace.ug.alerts@gmail.com"),
+    "sender_email": os.environ.get("SENDER_EMAIL", "ugsafespace@gmail.com"),
     "sender_password": os.environ.get("SENDER_PASSWORD", ""),
     "directorate_email": os.environ.get(
         "DIRECTORATE_EMAIL",
