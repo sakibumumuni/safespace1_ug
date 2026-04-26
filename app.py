@@ -53,7 +53,7 @@ APP_URL = os.environ.get("APP_URL", f"https://safespace1-ug.onrender.com").strip
 # Email Config (UG Counselling Directorate)
 EMAIL_CONFIG = {
     "smtp_server": os.environ.get("SMTP_SERVER", "smtp.gmail.com"),
-    "smtp_port": int(os.environ.get("SMTP_PORT", 587)),
+    "smtp_port": int(os.environ.get("SMTP_PORT", 465)),
     "sender_email": os.environ.get("SENDER_EMAIL", "ugsafespace@gmail.com"),
     "sender_password": os.environ.get("SENDER_PASSWORD", ""),
     "directorate_email": os.environ.get(
